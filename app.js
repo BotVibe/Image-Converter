@@ -252,7 +252,8 @@ function calculateDimensions(origWidth, origHeight) {
 function escapeHTML(str) {
     const p = document.createElement('p');
     p.appendChild(document.createTextNode(str));
-    return p.innerHTML;
+    // Also escape quotes to prevent attribute injection
+    return p.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function createResultItem(id, originalFile) {
@@ -296,7 +297,16 @@ async function processImage(file) {
         // Draw image directly to preserve transparency
         ctx.drawImage(img, 0, 0, width, height);
 
-        const previewUrl = canvas.toDataURL('image/png', 0.5);
+        // Generate a low-res preview to prevent UI freezing on huge images
+        const previewCanvas = document.createElement('canvas');
+        const prevCtx = previewCanvas.getContext('2d');
+        const MAX_PREV_SIZE = 100;
+        const prevRatio = Math.min(MAX_PREV_SIZE / width, MAX_PREV_SIZE / height);
+        previewCanvas.width = width * prevRatio;
+        previewCanvas.height = height * prevRatio;
+        prevCtx.drawImage(img, 0, 0, previewCanvas.width, previewCanvas.height);
+
+        const previewUrl = previewCanvas.toDataURL('image/png', 0.5);
         document.getElementById(`preview-${id}`).src = previewUrl;
 
         canvas.toBlob((blob) => {
@@ -351,6 +361,21 @@ function showError(id) {
 }
 
 function clearAll() {
+    // Revoke object URLs to prevent memory leaks
+    const links = document.querySelectorAll('#resultsList a[download]');
+    links.forEach(link => {
+        if (link.href.startsWith('blob:')) {
+            URL.revokeObjectURL(link.href);
+        }
+    });
+
+    const previews = document.querySelectorAll('#resultsList img.result-preview');
+    previews.forEach(img => {
+        if (img.src.startsWith('blob:')) {
+            URL.revokeObjectURL(img.src);
+        }
+    });
+
     document.getElementById('resultsList').innerHTML = '';
     document.getElementById('resultsPanel').classList.add('hidden');
     convertedFiles.length = 0;
