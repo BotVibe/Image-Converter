@@ -175,7 +175,6 @@ function initUI() {
 
     initI18n();
 
-    const formatSelect = document.getElementById('formatSelect');
     const avifWarning = document.getElementById('avifWarning');
 
     formatSelect.addEventListener('change', (e) => {
