@@ -21,7 +21,7 @@ const i18n = {
         quality: "Quality",
         original: "Original",
         compressed: "Compressed",
-        unsupportedFormat: "Your browser does not support converting to this format. It fell back to PNG.",
+        unsupportedFormat: "Your browser does not natively support this format. Used WASM polyfill.",
         showDetails: "Show Details"
     },
     de: {
@@ -45,7 +45,7 @@ const i18n = {
         quality: "Qualität",
         original: "Original",
         compressed: "Komprimiert",
-        unsupportedFormat: "Ihr Browser unterstützt die Konvertierung in dieses Format nicht. Es wurde auf PNG zurückgegriffen.",
+        unsupportedFormat: "Ihr Browser unterstützt dieses Format nicht nativ. WASM Polyfill verwendet.",
         showDetails: "Details anzeigen"
     },
     fr: {
@@ -69,7 +69,7 @@ const i18n = {
         quality: "Qualité",
         original: "Original",
         compressed: "Compressé",
-        unsupportedFormat: "Votre navigateur ne prend pas en charge la conversion vers ce format. Un repli vers PNG a été effectué.",
+        unsupportedFormat: "Votre navigateur ne prend pas en charge ce format nativement. Polyfill WASM utilisé.",
         showDetails: "Afficher les détails"
     },
     it: {
@@ -93,7 +93,7 @@ const i18n = {
         quality: "Qualità",
         original: "Originale",
         compressed: "Compresso",
-        unsupportedFormat: "Il tuo browser non supporta la conversione in questo formato. È stato utilizzato il formato PNG.",
+        unsupportedFormat: "Il tuo browser non supporta questo formato nativamente. È stato utilizzato il polyfill WASM.",
         showDetails: "Mostra Dettagli"
     }
 };
@@ -128,54 +128,53 @@ function applyLanguage() {
     });
 }
 
+import encodeAvif, { init as initAvif } from '@jsquash/avif/encode';
+import encodeWebp, { init as initWebp } from '@jsquash/webp/encode';
+
 const convertedFiles = []; // To store blobs for ZIP
 const originalFiles = new Map(); // To store original files mapping (id -> file)
 
-// Test browser format support
-const supportedFormats = {
+let wasmInitialized = false;
+
+// Check if browser natively supports the formats
+const nativeSupport = {
     'image/webp': true,
-    'image/avif': true,
-    'image/png': true
+    'image/avif': true
 };
 
-function checkFormatSupport() {
+function checkNativeSupport() {
     const canvas = document.createElement('canvas');
     canvas.width = 1;
     canvas.height = 1;
-
-    // Test WebP
     if (canvas.toDataURL('image/webp').indexOf('data:image/webp') !== 0) {
-        supportedFormats['image/webp'] = false;
+        nativeSupport['image/webp'] = false;
     }
-
-    // Test AVIF
     if (canvas.toDataURL('image/avif').indexOf('data:image/avif') !== 0) {
-        supportedFormats['image/avif'] = false;
+        nativeSupport['image/avif'] = false;
+    }
+}
+
+async function initWasmIfNeeded() {
+    if (wasmInitialized) return;
+    try {
+        // Only load WASM if the browser lacks native support for either
+        if (!nativeSupport['image/webp'] || !nativeSupport['image/avif']) {
+            await Promise.all([initAvif(), initWebp()]);
+        }
+        wasmInitialized = true;
+    } catch (err) {
+        console.error("Failed to initialize WASM encoders:", err);
     }
 }
 
 function initUI() {
-    checkFormatSupport();
-
-    const formatSelect = document.getElementById('formatSelect');
-    const formatWarning = document.getElementById('formatWarning');
-
-    // Disable unsupported options
-    Array.from(formatSelect.options).forEach(option => {
-        if (!supportedFormats[option.value]) {
-            option.disabled = true;
-            option.textContent += ' (Not Supported)';
-        }
-    });
-
-    // If initially selected format is not supported, switch to PNG
-    if (!supportedFormats[formatSelect.value]) {
-        formatSelect.value = 'image/png';
-    }
+    checkNativeSupport();
 
     initI18n();
 
+    const formatSelect = document.getElementById('formatSelect');
     const avifWarning = document.getElementById('avifWarning');
+    const formatWarning = document.getElementById('formatWarning');
 
     formatSelect.addEventListener('change', (e) => {
         if (e.target.value === 'image/avif') {
@@ -381,6 +380,9 @@ async function processImage(file, existingId = null) {
     const quality = parseInt(document.getElementById('qualitySlider').value, 10) / 100;
 
     try {
+        // Initialize WASM tools lazily
+        await initWasmIfNeeded();
+
         const img = await loadImage(file);
         const { width, height } = calculateDimensions(img.width, img.height);
 
@@ -404,75 +406,98 @@ async function processImage(file, existingId = null) {
         const previewUrl = previewCanvas.toDataURL('image/png', 0.5);
         document.getElementById(`preview-${id}`).src = previewUrl;
 
-        canvas.toBlob((blob) => {
-            if (!blob) {
-                showError(id);
-                return;
+        let blob;
+        let actualFormat = format;
+        let actualExtension = extension;
+        let hasFormatError = false;
+
+        // If format is WebP or AVIF AND browser lacks native support, use WASM Encoder!
+        if (format === 'image/avif' && !nativeSupport['image/avif']) {
+            hasFormatError = true; // We show the format warning as info that WASM was used
+            const imageData = ctx.getImageData(0, 0, width, height);
+            const qualityValue = Math.round(quality * 100); // 1 to 100
+            const buffer = await encodeAvif(imageData, { quality: qualityValue });
+            blob = new Blob([buffer], { type: 'image/avif' });
+            actualFormat = 'image/avif';
+            actualExtension = 'avif';
+        } else if (format === 'image/webp' && !nativeSupport['image/webp']) {
+            hasFormatError = true;
+            const imageData = ctx.getImageData(0, 0, width, height);
+            const qualityValue = quality * 100;
+            const buffer = await encodeWebp(imageData, { quality: qualityValue });
+            blob = new Blob([buffer], { type: 'image/webp' });
+            actualFormat = 'image/webp';
+            actualExtension = 'webp';
+        } else {
+            // Use Native Browser Encoding
+            blob = await new Promise((resolve) => {
+                canvas.toBlob(resolve, format, quality);
+            });
+
+            // Safety check against silent fail -> fallback to PNG (shouldnt happen anymore but just in case)
+            if (blob && format !== blob.type) {
+                actualFormat = blob.type;
+                actualExtension = actualFormat.split('/')[1];
+                if (actualExtension === 'png') hasFormatError = true;
             }
+        }
 
-            // Check if fallback to PNG occurred
-            let actualFormat = blob.type;
-            let actualExtension = actualFormat.split('/')[1];
-            let hasFormatError = false;
+        if (!blob) {
+            showError(id);
+            return;
+        }
 
-            if (format !== actualFormat) {
-                hasFormatError = true;
-                actualExtension = 'png'; // Browsers fallback to PNG
-            }
+        const newName = file.name.replace(/\.[^/.]+$/, "") + `.${actualExtension}`;
 
-            const newName = file.name.replace(/\.[^/.]+$/, "") + `.${actualExtension}`;
+        // Store for ZIP
+        const existingIndex = convertedFiles.findIndex(f => f.id === id);
+        if (existingIndex > -1) {
+            convertedFiles.splice(existingIndex, 1);
+        }
+        convertedFiles.push({ id: id, name: newName, blob: blob });
 
-            // Store for ZIP
-            // Remove old entry if exists (for re-compression)
-            const existingIndex = convertedFiles.findIndex(f => f.id === id);
-            if (existingIndex > -1) {
-                convertedFiles.splice(existingIndex, 1);
-            }
-            convertedFiles.push({ id: id, name: newName, blob: blob });
+        const blobUrl = URL.createObjectURL(blob);
 
-            const blobUrl = URL.createObjectURL(blob);
+        // Format sizes nicely
+        const origSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        let compSizeStr = '';
+        if (blob.size > 1024 * 1024) {
+            compSizeStr = (blob.size / (1024 * 1024)).toFixed(2) + ' MB';
+        } else {
+            compSizeStr = (blob.size / 1024).toFixed(1) + ' KB';
+        }
 
-            // Format sizes nicely
-            const origSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-            let compSizeStr = '';
-            if (blob.size > 1024 * 1024) {
-                compSizeStr = (blob.size / (1024 * 1024)).toFixed(2) + ' MB';
-            } else {
-                compSizeStr = (blob.size / 1024).toFixed(1) + ' KB';
-            }
+        document.getElementById(`meta-${id}`).innerHTML = `
+            ${width}x${height}px •
+            <span data-i18n="original">${i18n[currentLang].original}</span>: ${origSizeMB} MB
+            &rarr;
+            <span data-i18n="compressed">${i18n[currentLang].compressed}</span>: ${compSizeStr}
+        `;
 
-            document.getElementById(`meta-${id}`).innerHTML = `
-                ${width}x${height}px •
-                <span data-i18n="original">${i18n[currentLang].original}</span>: ${origSizeMB} MB
-                &rarr;
-                <span data-i18n="compressed">${i18n[currentLang].compressed}</span>: ${compSizeStr}
-            `;
+        const statusContainer = document.getElementById(`status-${id}`);
 
-            const statusContainer = document.getElementById(`status-${id}`);
-
-            if (hasFormatError) {
-                statusContainer.innerHTML = `
-                    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem;">
-                        <a href="${blobUrl}" download="${escapeHTML(newName)}" class="btn primary" style="text-decoration:none; display:inline-block;">
-                            <span data-i18n="download">${i18n[currentLang].download}</span>
-                        </a>
-                        <button class="btn secondary" style="font-size: 0.8rem; padding: 0.2rem 0.5rem;" onclick="document.getElementById('error-details-${id}').classList.toggle('hidden')">
-                            <span data-i18n="showDetails">${i18n[currentLang].showDetails}</span>
-                        </button>
-                    </div>
-                    <div id="error-details-${id}" class="error-details hidden" data-i18n="unsupportedFormat">
-                        ${i18n[currentLang].unsupportedFormat}
-                    </div>
-                `;
-            } else {
-                statusContainer.innerHTML = `
+        if (hasFormatError) {
+            statusContainer.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem;">
                     <a href="${blobUrl}" download="${escapeHTML(newName)}" class="btn primary" style="text-decoration:none; display:inline-block;">
                         <span data-i18n="download">${i18n[currentLang].download}</span>
                     </a>
-                `;
-            }
+                    <button class="btn secondary" style="font-size: 0.8rem; padding: 0.2rem 0.5rem;" onclick="document.getElementById('error-details-${id}').classList.toggle('hidden')">
+                        <span data-i18n="showDetails">${i18n[currentLang].showDetails}</span>
+                    </button>
+                </div>
+                <div id="error-details-${id}" class="error-details hidden" data-i18n="unsupportedFormat">
+                    ${i18n[currentLang].unsupportedFormat}
+                </div>
+            `;
+        } else {
+            statusContainer.innerHTML = `
+                <a href="${blobUrl}" download="${escapeHTML(newName)}" class="btn primary" style="text-decoration:none; display:inline-block;">
+                    <span data-i18n="download">${i18n[currentLang].download}</span>
+                </a>
+            `;
+        }
 
-        }, format, quality);
     } catch (e) {
         showError(id);
         console.error("Error processing image:", e);

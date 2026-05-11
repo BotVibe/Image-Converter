@@ -1,10 +1,10 @@
 # Privacy-First Local Image Converter
 
-A simple, fast, and 100% privacy-compliant image converter built entirely with Vanilla JavaScript, HTML, and CSS. The tool runs completely in the browser without sending any data to external servers.
+A simple, fast, and 100% privacy-compliant image converter built entirely with Vanilla JavaScript, HTML, CSS and powered by Vite & WebAssembly. The tool runs completely in the browser without sending any data to external servers.
 
 ## Features
 
-- **Format Conversion:** Convert common image formats (JPEG, PNG, etc.) to **WebP**, **AVIF**, and **PNG** directly in the browser using the native HTML5 Canvas API.
+- **Format Conversion:** Convert common image formats (JPEG, PNG, etc.) to **WebP**, **AVIF**, and **PNG** directly in the browser. Uses native Canvas APIs where supported, and falls back to WebAssembly polyfills (`@jsquash`) for guaranteed compatibility (e.g., AVIF on Safari).
 - **Smart Resizing:**
   - **Maintain Aspect Ratio (Bounding Box):** Set a *Max Width* and *Max Height*. The image will scale down proportionally to fit inside these bounds without distortion.
   - **Exact Dimensions (Stretch):** Uncheck the aspect ratio box to force the image to exact *Width* and *Height* dimensions.
@@ -15,24 +15,30 @@ A simple, fast, and 100% privacy-compliant image converter built entirely with V
 
 ## Usage / Setup
 
-Because the application relies purely on static files, no complex build steps or package managers (like npm/yarn) are required.
+This project uses Vite to bundle the WebAssembly encoders efficiently.
 
-### Local Development / Usage
+### Local Development
 1. Clone or download this repository.
-2. Simply open `index.html` in any modern web browser.
-3. *Note: If you run into Cross-Origin (CORS) issues when loading local files in some strict browsers, you can start a simple local server:*
+2. Install dependencies:
    ```bash
-   python -m http.server 8000
-   # or
-   npx serve
+   npm install
    ```
+3. Start the dev server:
+   ```bash
+   npm run dev
+   ```
+
+### Building for Production
+1. Run the build command:
+   ```bash
+   npm run build
+   ```
+2. The static files will be placed into the `dist/` folder. You can deploy this entire folder to any static hosting provider.
 
 ### Webflow & Transparency
 This tool was built with Webflow compatibility in mind. Conversions to PNG, WebP, and AVIF will preserve image transparency automatically.
 
 ## Browser Support
-- **Chrome / Edge / Opera:** Full support (including AVIF).
+- **Chrome / Edge / Opera:** Full support.
 - **Firefox:** Full support.
-- **Safari:** Full support (AVIF supported in modern versions).
-
-*If AVIF conversion fails or produces a broken file, it is likely due to the specific browser engine lacking native support for the `canvas.toBlob('image/avif')` encoder or the image exceeding strict AVIF dimension limits.*
+- **Safari:** Full support (Using WebAssembly Polyfill for AVIF).
