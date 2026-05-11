@@ -4,11 +4,12 @@ const i18n = {
         title: "Image Converter",
         settingsTitle: "Settings",
         targetFormat: "Target Format:",
-        width: "Width (px):",
-        height: "Height (px):",
+        width: "Exact Width (px):",
+        height: "Exact Height (px):",
+        maxWidth: "Max Width (px):",
+        maxHeight: "Max Height (px):",
         keepAspectRatio: "Keep Aspect Ratio",
-        maxPixels: "Max Pixels (Total):",
-        avifWarning: "AVIF has strict size limits. Consider setting Max Pixels (e.g. 8000000) for large images.",
+        avifWarning: "AVIF has strict size limits. Ensure your dimensions are not too large.",
         dropText: "Drag & Drop images here or click to select",
         resultsTitle: "Converted Images",
         downloadZip: "Download All as ZIP",
@@ -22,11 +23,12 @@ const i18n = {
         title: "Bild Konverter",
         settingsTitle: "Einstellungen",
         targetFormat: "Zielformat:",
-        width: "Breite (px):",
-        height: "Höhe (px):",
+        width: "Exakte Breite (px):",
+        height: "Exakte Höhe (px):",
+        maxWidth: "Maximale Breite (px):",
+        maxHeight: "Maximale Höhe (px):",
         keepAspectRatio: "Seitenverhältnis beibehalten",
-        maxPixels: "Max. Pixel (Gesamt):",
-        avifWarning: "AVIF hat strenge Größenlimits. Bei großen Bildern ggf. Max. Pixel (z.B. 8000000) setzen.",
+        avifWarning: "AVIF hat strenge Größenlimits. Bei großen Bildern bitte die Dimensionen anpassen.",
         dropText: "Bilder hier ablegen (Drag & Drop) oder klicken zur Auswahl",
         resultsTitle: "Konvertierte Bilder",
         downloadZip: "Alle als ZIP herunterladen",
@@ -40,11 +42,12 @@ const i18n = {
         title: "Convertisseur d'Images",
         settingsTitle: "Paramètres",
         targetFormat: "Format cible:",
-        width: "Largeur (px):",
-        height: "Hauteur (px):",
+        width: "Largeur exacte (px):",
+        height: "Hauteur exacte (px):",
+        maxWidth: "Largeur max (px):",
+        maxHeight: "Hauteur max (px):",
         keepAspectRatio: "Conserver les proportions",
-        maxPixels: "Pixels Max (Total):",
-        avifWarning: "AVIF a des limites de taille strictes. Pensez à définir Pixels Max (ex. 8000000) pour les grandes images.",
+        avifWarning: "AVIF a des limites de taille strictes. Pensez à ajuster vos dimensions.",
         dropText: "Glissez et déposez des images ici ou cliquez pour sélectionner",
         resultsTitle: "Images Converties",
         downloadZip: "Tout télécharger en ZIP",
@@ -58,11 +61,12 @@ const i18n = {
         title: "Convertitore di Immagini",
         settingsTitle: "Impostazioni",
         targetFormat: "Formato di destinazione:",
-        width: "Larghezza (px):",
-        height: "Altezza (px):",
+        width: "Larghezza esatta (px):",
+        height: "Altezza esatta (px):",
+        maxWidth: "Larghezza max (px):",
+        maxHeight: "Altezza max (px):",
         keepAspectRatio: "Mantieni proporzioni",
-        maxPixels: "Pixel Max (Totali):",
-        avifWarning: "AVIF ha limiti di dimensione rigidi. Considera di impostare Pixel Max (es. 8000000) per immagini grandi.",
+        avifWarning: "AVIF ha limiti di dimensione rigidi. Considera di impostare dimensioni adeguate.",
         dropText: "Trascina le immagini qui o clicca per selezionare",
         resultsTitle: "Immagini Convertite",
         downloadZip: "Scarica tutto come ZIP",
@@ -153,6 +157,25 @@ function initUI() {
 
     document.getElementById('clearBtn').addEventListener('click', clearAll);
     document.getElementById('downloadZipBtn').addEventListener('click', downloadZip);
+
+    const keepAspectRatio = document.getElementById('keepAspectRatio');
+    const labelWidth = document.getElementById('labelWidth');
+    const labelHeight = document.getElementById('labelHeight');
+
+    function updateDimensionLabels() {
+        if (keepAspectRatio.checked) {
+            labelWidth.setAttribute('data-i18n', 'maxWidth');
+            labelHeight.setAttribute('data-i18n', 'maxHeight');
+        } else {
+            labelWidth.setAttribute('data-i18n', 'width');
+            labelHeight.setAttribute('data-i18n', 'height');
+        }
+        applyLanguage();
+    }
+
+    keepAspectRatio.addEventListener('change', updateDimensionLabels);
+    // Init state
+    updateDimensionLabels();
 }
 
 async function downloadZip() {
@@ -203,34 +226,24 @@ function calculateDimensions(origWidth, origHeight) {
     const keepAspect = document.getElementById('keepAspectRatio').checked;
     const targetWidth = parseInt(document.getElementById('inputWidth').value, 10);
     const targetHeight = parseInt(document.getElementById('inputHeight').value, 10);
-    const maxPixels = parseInt(document.getElementById('maxPixels').value, 10);
 
     let newWidth = origWidth;
     let newHeight = origHeight;
 
     if (keepAspect) {
-        if (targetWidth && targetHeight) {
-            // Fit within the given box
-            const ratio = Math.min(targetWidth / origWidth, targetHeight / origHeight);
-            newWidth = origWidth * ratio;
-            newHeight = origHeight * ratio;
-        } else if (targetWidth) {
-            newWidth = targetWidth;
-            newHeight = origHeight * (targetWidth / origWidth);
-        } else if (targetHeight) {
-            newHeight = targetHeight;
-            newWidth = origWidth * (targetHeight / origHeight);
-        }
+        // If keepAspect is true, inputs act as a bounding box (Max Width / Max Height)
+        // We only scale DOWN if the image exceeds these limits.
+        const widthRatio = targetWidth && (origWidth > targetWidth) ? targetWidth / origWidth : 1;
+        const heightRatio = targetHeight && (origHeight > targetHeight) ? targetHeight / origHeight : 1;
+
+        const ratio = Math.min(widthRatio, heightRatio);
+
+        newWidth = origWidth * ratio;
+        newHeight = origHeight * ratio;
     } else {
+        // If keepAspect is false, inputs act as exact dimensions (stretch to fill)
         if (targetWidth) newWidth = targetWidth;
         if (targetHeight) newHeight = targetHeight;
-    }
-
-    // Apply Max Pixels limit
-    if (maxPixels && (newWidth * newHeight) > maxPixels) {
-        const ratio = Math.sqrt(maxPixels / (newWidth * newHeight));
-        newWidth = newWidth * ratio;
-        newHeight = newHeight * ratio;
     }
 
     return { width: Math.round(newWidth), height: Math.round(newHeight) };
