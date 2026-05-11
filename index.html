@@ -34,11 +34,11 @@
 
             <div class="dimensions-group">
                 <div class="form-group">
-                    <label for="inputWidth" data-i18n="width">Width (px):</label>
+                    <label for="inputWidth" id="labelWidth" data-i18n="maxWidth">Max Width (px):</label>
                     <input type="number" id="inputWidth" min="1" placeholder="Auto">
                 </div>
                 <div class="form-group">
-                    <label for="inputHeight" data-i18n="height">Height (px):</label>
+                    <label for="inputHeight" id="labelHeight" data-i18n="maxHeight">Max Height (px):</label>
                     <input type="number" id="inputHeight" min="1" placeholder="Auto">
                 </div>
             </div>
@@ -48,11 +48,8 @@
                 <label for="keepAspectRatio" data-i18n="keepAspectRatio">Keep Aspect Ratio</label>
             </div>
 
-            <div class="form-group">
-                <label for="maxPixels" data-i18n="maxPixels">Max Pixels (Total):</label>
-                <input type="number" id="maxPixels" min="1" placeholder="e.g. 8000000">
-                <small id="avifWarning" class="warning hidden" data-i18n="avifWarning">AVIF has strict size limits. Consider setting Max Pixels (e.g. 8000000) for large images.</small>
-            </div>
+            <small id="avifWarning" class="warning hidden" style="margin-bottom: 1rem;" data-i18n="avifWarning">AVIF has strict size limits. Ensure your dimensions are not too large.</small>
+
         </section>
 
         <section class="upload-panel">
