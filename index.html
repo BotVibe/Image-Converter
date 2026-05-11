@@ -48,7 +48,13 @@
                 <label for="keepAspectRatio" data-i18n="keepAspectRatio">Keep Aspect Ratio</label>
             </div>
 
+            <div class="form-group">
+                <label for="qualitySlider" id="qualityLabel"><span data-i18n="quality">Quality</span>: <span id="qualityValue">90</span>%</label>
+                <input type="range" id="qualitySlider" min="1" max="100" value="90">
+            </div>
+
             <small id="avifWarning" class="warning hidden" style="margin-bottom: 1rem;" data-i18n="avifWarning">AVIF has strict size limits. Ensure your dimensions are not too large.</small>
+            <small id="formatWarning" class="warning hidden" style="margin-bottom: 1rem;"></small>
 
         </section>
 
