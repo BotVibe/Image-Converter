@@ -9,7 +9,6 @@ const i18n = {
         maxWidth: "Max Width (px):",
         maxHeight: "Max Height (px):",
         keepAspectRatio: "Keep Aspect Ratio",
-        avifWarning: "AVIF has strict size limits. Ensure your dimensions are not too large.",
         dropText: "Drag & Drop images here or click to select",
         resultsTitle: "Converted Images",
         downloadZip: "Download All as ZIP",
@@ -17,6 +16,7 @@ const i18n = {
         processing: "Processing...",
         success: "Done",
         error: "Error",
+        remove: "Remove",
         download: "Download Compressed File",
         quality: "Quality",
         original: "Original",
@@ -33,7 +33,6 @@ const i18n = {
         maxWidth: "Maximale Breite (px):",
         maxHeight: "Maximale Höhe (px):",
         keepAspectRatio: "Seitenverhältnis beibehalten",
-        avifWarning: "AVIF hat strenge Größenlimits. Bei großen Bildern bitte die Dimensionen anpassen.",
         dropText: "Bilder hier ablegen (Drag & Drop) oder klicken zur Auswahl",
         resultsTitle: "Konvertierte Bilder",
         downloadZip: "Alle als ZIP herunterladen",
@@ -41,6 +40,7 @@ const i18n = {
         processing: "Verarbeite...",
         success: "Fertig",
         error: "Fehler",
+        remove: "Entfernen",
         download: "Komprimierte Datei herunterladen",
         quality: "Qualität",
         original: "Original",
@@ -57,7 +57,6 @@ const i18n = {
         maxWidth: "Largeur max (px):",
         maxHeight: "Hauteur max (px):",
         keepAspectRatio: "Conserver les proportions",
-        avifWarning: "AVIF a des limites de taille strictes. Pensez à ajuster vos dimensions.",
         dropText: "Glissez et déposez des images ici ou cliquez pour sélectionner",
         resultsTitle: "Images Converties",
         downloadZip: "Tout télécharger en ZIP",
@@ -65,6 +64,7 @@ const i18n = {
         processing: "Traitement...",
         success: "Terminé",
         error: "Erreur",
+        remove: "Supprimer",
         download: "Télécharger le Fichier Compressé",
         quality: "Qualité",
         original: "Original",
@@ -81,7 +81,6 @@ const i18n = {
         maxWidth: "Larghezza max (px):",
         maxHeight: "Altezza max (px):",
         keepAspectRatio: "Mantieni proporzioni",
-        avifWarning: "AVIF ha limiti di dimensione rigidi. Considera di impostare dimensioni adeguate.",
         dropText: "Trascina le immagini qui o clicca per selezionare",
         resultsTitle: "Immagini Convertite",
         downloadZip: "Scarica tutto come ZIP",
@@ -89,6 +88,7 @@ const i18n = {
         processing: "Elaborazione...",
         success: "Completato",
         error: "Errore",
+        remove: "Rimuovi",
         download: "Scarica File Compresso",
         quality: "Qualità",
         original: "Originale",
@@ -173,23 +173,30 @@ function initUI() {
     initI18n();
 
     const formatSelect = document.getElementById('formatSelect');
-    const avifWarning = document.getElementById('avifWarning');
     const formatWarning = document.getElementById('formatWarning');
+    const inputWidth = document.getElementById('inputWidth');
+    const inputHeight = document.getElementById('inputHeight');
 
-    formatSelect.addEventListener('change', (e) => {
-        if (e.target.value === 'image/avif') {
-            avifWarning.classList.remove('hidden');
+    const enforceLimits = () => {
+        if (formatSelect.value === 'image/avif') {
+            inputWidth.max = "4096";
+            inputHeight.max = "4096";
+            if (inputWidth.value && parseInt(inputWidth.value) > 4096) inputWidth.value = 4096;
+            if (inputHeight.value && parseInt(inputHeight.value) > 4096) inputHeight.value = 4096;
         } else {
-            avifWarning.classList.add('hidden');
+            inputWidth.removeAttribute('max');
+            inputHeight.removeAttribute('max');
         }
-    });
+    };
+
+    formatSelect.addEventListener('change', enforceLimits);
+    inputWidth.addEventListener('input', enforceLimits);
+    inputHeight.addEventListener('input', enforceLimits);
 
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
     const qualitySlider = document.getElementById('qualitySlider');
     const qualityValue = document.getElementById('qualityValue');
-    const inputWidth = document.getElementById('inputWidth');
-    const inputHeight = document.getElementById('inputHeight');
 
     // Quality slider text update
     qualitySlider.addEventListener('input', (e) => {
@@ -479,9 +486,14 @@ async function processImage(file, existingId = null) {
         if (hasFormatError) {
             statusContainer.innerHTML = `
                 <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem;">
-                    <a href="${blobUrl}" download="${escapeHTML(newName)}" class="btn primary" style="text-decoration:none; display:inline-block;">
-                        <span data-i18n="download">${i18n[currentLang].download}</span>
-                    </a>
+                    <div class="action-buttons-row">
+                        <a href="${blobUrl}" download="${escapeHTML(newName)}" class="btn primary" style="text-decoration:none; display:inline-block;">
+                            <span data-i18n="download">${i18n[currentLang].download}</span>
+                        </a>
+                        <button class="btn delete-btn" title="${i18n[currentLang].remove}" onclick="removeResult('${id}')">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                        </button>
+                    </div>
                     <button class="btn secondary" style="font-size: 0.8rem; padding: 0.2rem 0.5rem;" onclick="document.getElementById('error-details-${id}').classList.toggle('hidden')">
                         <span data-i18n="showDetails">${i18n[currentLang].showDetails}</span>
                     </button>
@@ -492,9 +504,14 @@ async function processImage(file, existingId = null) {
             `;
         } else {
             statusContainer.innerHTML = `
-                <a href="${blobUrl}" download="${escapeHTML(newName)}" class="btn primary" style="text-decoration:none; display:inline-block;">
-                    <span data-i18n="download">${i18n[currentLang].download}</span>
-                </a>
+                <div class="action-buttons-row">
+                    <a href="${blobUrl}" download="${escapeHTML(newName)}" class="btn primary" style="text-decoration:none; display:inline-block;">
+                        <span data-i18n="download">${i18n[currentLang].download}</span>
+                    </a>
+                    <button class="btn delete-btn" title="${i18n[currentLang].remove}" onclick="removeResult('${id}')">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                    </button>
+                </div>
             `;
         }
 
@@ -524,6 +541,32 @@ function showError(id) {
     const statusContainer = document.getElementById(`status-${id}`);
     statusContainer.innerHTML = `<span class="status-error" data-i18n="error">${i18n[currentLang].error}</span>`;
 }
+
+
+window.removeResult = function(id) {
+    const li = document.getElementById(`item-${id}`);
+    if (!li) return;
+
+    // Revoke object URLs to prevent memory leaks
+    const preview = li.querySelector('.result-preview');
+    if (preview && preview.src.startsWith('blob:')) {
+        URL.revokeObjectURL(preview.src);
+    }
+    const download = li.querySelector('a[download]');
+    if (download && download.href.startsWith('blob:')) {
+        URL.revokeObjectURL(download.href);
+    }
+
+    li.remove();
+    originalFiles.delete(id);
+
+    const index = convertedFiles.findIndex(f => f.id === id);
+    if (index > -1) convertedFiles.splice(index, 1);
+
+    if (convertedFiles.length === 0) {
+        document.getElementById('resultsPanel').classList.add('hidden');
+    }
+};
 
 function clearAll() {
     // Revoke object URLs to prevent memory leaks
