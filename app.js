@@ -17,7 +17,7 @@ const i18n = {
         success: "Done",
         error: "Error",
         remove: "Remove",
-        download: "Download Compressed File",
+        download: "Download",
         quality: "Quality",
         original: "Original",
         compressed: "Compressed",
@@ -41,7 +41,7 @@ const i18n = {
         success: "Fertig",
         error: "Fehler",
         remove: "Entfernen",
-        download: "Komprimierte Datei herunterladen",
+        download: "Herunterladen",
         quality: "Qualität",
         original: "Original",
         compressed: "Komprimiert",
@@ -65,7 +65,7 @@ const i18n = {
         success: "Terminé",
         error: "Erreur",
         remove: "Supprimer",
-        download: "Télécharger le Fichier Compressé",
+        download: "Télécharger",
         quality: "Qualité",
         original: "Original",
         compressed: "Compressé",
@@ -89,7 +89,7 @@ const i18n = {
         success: "Completato",
         error: "Errore",
         remove: "Rimuovi",
-        download: "Scarica File Compresso",
+        download: "Scarica",
         quality: "Qualità",
         original: "Originale",
         compressed: "Compresso",
@@ -181,17 +181,31 @@ function initUI() {
         if (formatSelect.value === 'image/avif') {
             inputWidth.max = "4096";
             inputHeight.max = "4096";
-            if (inputWidth.value && parseInt(inputWidth.value) > 4096) inputWidth.value = 4096;
-            if (inputHeight.value && parseInt(inputHeight.value) > 4096) inputHeight.value = 4096;
+
+            if (!inputWidth.value || parseInt(inputWidth.value) > 4096) {
+                inputWidth.value = 4096;
+            }
+            if (!inputHeight.value || parseInt(inputHeight.value) > 4096) {
+                inputHeight.value = 4096;
+            }
         } else {
             inputWidth.removeAttribute('max');
             inputHeight.removeAttribute('max');
         }
     };
 
+    const clampLimits = () => {
+        if (formatSelect.value === 'image/avif') {
+            if (inputWidth.value && parseInt(inputWidth.value) > 4096) inputWidth.value = 4096;
+            if (inputHeight.value && parseInt(inputHeight.value) > 4096) inputHeight.value = 4096;
+        }
+    };
+
     formatSelect.addEventListener('change', enforceLimits);
-    inputWidth.addEventListener('input', enforceLimits);
-    inputHeight.addEventListener('input', enforceLimits);
+    inputWidth.addEventListener('change', enforceLimits);
+    inputHeight.addEventListener('change', enforceLimits);
+    inputWidth.addEventListener('input', clampLimits);
+    inputHeight.addEventListener('input', clampLimits);
 
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
