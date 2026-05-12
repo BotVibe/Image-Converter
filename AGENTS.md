@@ -27,12 +27,14 @@ When interacting with this repository, AI agents must strictly adhere to the fol
 
 ## File Structure & Responsibilities
 
-- `index.html`: The semantic structure of the UI. Contains the `data-i18n` tags used for localization.
-- `style.css`: All styling using standard CSS variables (`:root`) for easy theming.
+- `index.html`: The semantic structure of the UI. Contains the `data-i18n` tags used for localization. The UI is structured sequentially: Settings Panel, Results Panel (Converted Images), and then Upload Panel.
+- `style.css`: All styling using standard CSS variables (`:root`) for easy theming. The design language is modern and angular (small border radii).
 - `app.js`:
   - Handles the UI logic, drag & drop, and the localization (i18n) dictionary.
+  - Enforces a hard maximum dimension limit of 4096px across all output formats (`enforceLimits()`) to ensure stability.
+  - Handles memory management gracefully (e.g., revoking Blob URLs when an individual image is removed from the results list).
   - Contains the core logic for calculating image dimensions (bounding box vs. exact stretch based on the aspect ratio toggle).
-  - Handles the Canvas generation, blob extraction, and the bundling into JSZip.
+  - Handles the Canvas generation, blob extraction, and the bundling into JSZip. Technical warnings about WASM polyfills are intentionally suppressed for better user experience.
 - `jszip.min.js`: Locally hosted dependency for generating ZIP archives.
 
 ## Modifying UI & i18n
