@@ -8,7 +8,7 @@
     --border-color: #e1e4e8;
     --warning-color: #e74c3c;
     --success-color: #2ecc71;
-    --radius: 8px;
+    --radius: 2px;
 }
 
 * {
@@ -30,7 +30,7 @@ header {
     align-items: center;
     padding: 1rem 2rem;
     background-color: var(--card-bg);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
 header h1 {
@@ -60,7 +60,7 @@ section {
     background-color: var(--card-bg);
     padding: 1.5rem;
     border-radius: var(--radius);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
 }
 
 h2 {
@@ -253,4 +253,70 @@ select option:disabled {
 input[type=range] {
     width: 100%;
     margin-top: 0.5rem;
+}
+
+
+.action-buttons-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.delete-btn {
+    background-color: transparent;
+    color: var(--text-muted);
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.delete-btn:hover {
+    background-color: #fee2e2;
+    border-color: var(--warning-color);
+    color: var(--warning-color);
+}
+
+/* Media Queries for Responsive Design */
+@media (max-width: 600px) {
+    .dimensions-group {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .result-item {
+        display: grid;
+        grid-template-columns: 80px 1fr;
+        grid-template-areas:
+            "preview info"
+            "preview status";
+        gap: 0.5rem 1rem;
+        padding: 1rem;
+    }
+
+    .result-info {
+        display: contents; /* Break out of the flex container to join grid */
+    }
+
+    .result-preview {
+        grid-area: preview;
+        width: 80px;
+        height: 80px;
+        align-self: center;
+    }
+
+    .result-details {
+        grid-area: info;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .result-status {
+        grid-area: status;
+        display: flex;
+        justify-content: flex-start;
+        align-items: flex-start;
+    }
 }
