@@ -178,27 +178,20 @@ function initUI() {
     const inputHeight = document.getElementById('inputHeight');
 
     const enforceLimits = () => {
-        if (formatSelect.value === 'image/avif') {
-            inputWidth.max = "4096";
-            inputHeight.max = "4096";
+        inputWidth.max = "4096";
+        inputHeight.max = "4096";
 
-            if (!inputWidth.value || parseInt(inputWidth.value) > 4096) {
-                inputWidth.value = 4096;
-            }
-            if (!inputHeight.value || parseInt(inputHeight.value) > 4096) {
-                inputHeight.value = 4096;
-            }
-        } else {
-            inputWidth.removeAttribute('max');
-            inputHeight.removeAttribute('max');
+        if (!inputWidth.value || parseInt(inputWidth.value) > 4096) {
+            inputWidth.value = 4096;
+        }
+        if (!inputHeight.value || parseInt(inputHeight.value) > 4096) {
+            inputHeight.value = 4096;
         }
     };
 
     const clampLimits = () => {
-        if (formatSelect.value === 'image/avif') {
-            if (inputWidth.value && parseInt(inputWidth.value) > 4096) inputWidth.value = 4096;
-            if (inputHeight.value && parseInt(inputHeight.value) > 4096) inputHeight.value = 4096;
-        }
+        if (inputWidth.value && parseInt(inputWidth.value) > 4096) inputWidth.value = 4096;
+        if (inputHeight.value && parseInt(inputHeight.value) > 4096) inputHeight.value = 4096;
     };
 
     formatSelect.addEventListener('change', enforceLimits);
@@ -206,6 +199,8 @@ function initUI() {
     inputHeight.addEventListener('change', enforceLimits);
     inputWidth.addEventListener('input', clampLimits);
     inputHeight.addEventListener('input', clampLimits);
+
+    enforceLimits();
 
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
