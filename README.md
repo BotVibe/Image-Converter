@@ -8,8 +8,11 @@ A simple, fast, and 100% privacy-compliant image converter built entirely with V
 - **Smart Resizing:**
   - **Maintain Aspect Ratio (Bounding Box):** Set a *Max Width* and *Max Height*. The image will scale down proportionally to fit inside these bounds without distortion.
   - **Exact Dimensions (Stretch):** Uncheck the aspect ratio box to force the image to exact *Width* and *Height* dimensions.
+  - **Safe Limits:** To ensure optimal performance and compatibility, output dimensions are automatically clamped to a maximum of 4096px across all formats.
 - **Batch Processing:** Upload multiple images via Drag & Drop or file selection.
+- **Item Management:** Individually remove processed images from the list if you decide not to keep them.
 - **Bulk Download:** Download converted images individually or bundled as a ZIP file.
+- **Modern & Responsive:** Features a clean, squared-off modern design that adapts perfectly to mobile screens using CSS Grid layouts.
 - **100% Privacy:** All processing happens client-side. The required `JSZip` library is hosted locally, ensuring absolutely zero external network requests or tracking.
 - **Multilingual UI:** Supports English, German, French, and Italian with auto-detection based on browser language.
 
