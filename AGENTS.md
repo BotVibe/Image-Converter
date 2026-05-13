@@ -27,8 +27,8 @@ When interacting with this repository, AI agents must strictly adhere to the fol
 
 ## File Structure & Responsibilities
 
-- `index.html`: The semantic structure of the UI. Contains the `data-i18n` tags used for localization. The UI is structured sequentially: Settings Panel, Results Panel (Converted Images), and then Upload Panel.
-- `style.css`: All styling using standard CSS variables (`:root`) for easy theming. The design language is modern and angular (small border radii).
+- `index.html`: The semantic structure of the UI. Contains the `data-i18n` tags used for localization. The UI is structured sequentially: Settings Panel, Results Panel (Converted Images), Upload Panel, Info Panel (Privacy Explanation), and finally the Footer.
+- `style.css`: All styling using standard CSS variables (`:root`) for easy theming. The design language is a modern dark theme (`#0b0f19` background, `#b6f228` primary color) and highly angular (0px border radii).
 - `app.js`:
   - Handles the UI logic, drag & drop, and the localization (i18n) dictionary.
   - Enforces a hard maximum dimension limit of 4096px across all output formats (`enforceLimits()`) to ensure stability.
