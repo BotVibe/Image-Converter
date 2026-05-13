@@ -21,6 +21,9 @@ const i18n = {
         quality: "Quality",
         original: "Original",
         compressed: "Compressed",
+        howItWorksTitle: "How it works & Privacy",
+        howItWorksText: "This tool converts your images directly within your browser. By utilizing your device's processing power and modern browser capabilities, no images are ever uploaded to an external server. This guarantees 100% privacy and lightning-fast processing, as your data never leaves your device.",
+        githubRepo: "View Source on GitHub"
             },
     de: {
         title: "Bild Konverter",
@@ -43,6 +46,9 @@ const i18n = {
         quality: "Qualität",
         original: "Original",
         compressed: "Komprimiert",
+        howItWorksTitle: "Funktionsweise & Datenschutz",
+        howItWorksText: "Dieses Tool konvertiert Ihre Bilder direkt in Ihrem Browser. Durch die Nutzung der Rechenleistung Ihres Geräts und moderner Browserfunktionen werden niemals Bilder auf einen externen Server hochgeladen. Dies garantiert 100% Datenschutz und eine blitzschnelle Verarbeitung, da Ihre Daten Ihr Gerät nie verlassen.",
+        githubRepo: "Quellcode auf GitHub ansehen"
             },
     fr: {
         title: "Convertisseur d'Images",
@@ -65,6 +71,9 @@ const i18n = {
         quality: "Qualité",
         original: "Original",
         compressed: "Compressé",
+        howItWorksTitle: "Comment ça marche et Confidentialité",
+        howItWorksText: "Cet outil convertit vos images directement dans votre navigateur. En utilisant la puissance de traitement de votre appareil et les capacités des navigateurs modernes, aucune image n'est jamais téléchargée sur un serveur externe. Cela garantit une confidentialité à 100 % et un traitement ultra-rapide, car vos données ne quittent jamais votre appareil.",
+        githubRepo: "Voir le code source sur GitHub"
             },
     it: {
         title: "Convertitore di Immagini",
@@ -87,6 +96,9 @@ const i18n = {
         quality: "Qualità",
         original: "Originale",
         compressed: "Compresso",
+        howItWorksTitle: "Come funziona e Privacy",
+        howItWorksText: "Questo strumento converte le tue immagini direttamente nel tuo browser. Utilizzando la potenza di elaborazione del tuo dispositivo e le moderne capacità del browser, nessuna immagine viene mai caricata su un server esterno. Questo garantisce il 100% di privacy e un'elaborazione fulminea, poiché i tuoi dati non lasciano mai il tuo dispositivo.",
+        githubRepo: "Visualizza il codice sorgente su GitHub"
             }
 };
 
