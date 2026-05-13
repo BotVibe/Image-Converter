@@ -38,6 +38,13 @@ This project uses Vite to bundle the WebAssembly encoders efficiently.
    ```
 2. The static files will be placed into the `dist/` folder. You can deploy this entire folder to any static hosting provider.
 
+### Automated Deployment (GitHub Pages)
+This repository includes a GitHub Action (`.github/workflows/deploy.yml`) that automatically builds and deploys the application to GitHub Pages whenever changes are pushed to the `main` branch.
+To enable it:
+1. Go to your repository settings on GitHub.
+2. Navigate to **Pages** in the left sidebar.
+3. Under **Build and deployment -> Source**, select **GitHub Actions**.
+
 ### Webflow & Transparency
 This tool was built with Webflow compatibility in mind. Conversions to PNG, WebP, and AVIF will preserve image transparency automatically.
 

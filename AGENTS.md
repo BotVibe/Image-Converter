@@ -9,14 +9,14 @@ When interacting with this repository, AI agents must strictly adhere to the fol
    - **DO NOT** add external CDNs (e.g., `<script src="https://unpkg.com/...">`).
    - If a third-party library is required (e.g., `jszip.min.js`), it **must** be downloaded and stored locally in the repository.
 
-2. **Vanilla Stack Only:**
-   - The project uses pure HTML, CSS, and Vanilla JavaScript.
-   - **DO NOT** introduce build tools, bundlers, or frameworks like Webpack, Vite, React, Vue, or TailwindCSS unless explicitly requested by the user.
-   - Keep the codebase lightweight and directly executable in the browser via `index.html`.
+2. **Vanilla JS with Minimal Build Tools:**
+   - The project uses pure HTML, CSS, and Vanilla JavaScript for the UI.
+   - **DO NOT** introduce complex UI frameworks like React, Vue, or TailwindCSS unless explicitly requested by the user.
+   - The project relies on **Vite** as a minimal build tool specifically to bundle WebAssembly (`.wasm`) payloads.
 
-3. **Client-Side Image Processing:**
-   - Image conversion relies on the browser's native HTML5 Canvas API (`canvas.toBlob()`, `ctx.drawImage()`).
-   - Do not introduce WebAssembly (WASM) encoders (like FFmpeg.wasm or Squoosh) for image processing. The tool intentionally delegates format support (like AVIF) to the user's browser engine.
+3. **Client-Side Image Processing & WASM Fallbacks:**
+   - Image conversion primarily relies on the browser's native HTML5 Canvas API (`canvas.toBlob()`, `ctx.drawImage()`) for speed.
+   - However, for environments that lack native encoding support (e.g., Safari/Firefox for AVIF), the tool intercepts the process and uses **`@jsquash` WebAssembly (WASM) encoders** as a robust polyfill.
    - Always ensure that transparency is preserved during canvas operations. Do not manually fill the canvas background with solid colors before drawing the image.
 
 ## Security
@@ -34,8 +34,8 @@ When interacting with this repository, AI agents must strictly adhere to the fol
   - Enforces a hard maximum dimension limit of 4096px across all output formats (`enforceLimits()`) to ensure stability.
   - Handles memory management gracefully (e.g., revoking Blob URLs when an individual image is removed from the results list).
   - Contains the core logic for calculating image dimensions (bounding box vs. exact stretch based on the aspect ratio toggle).
-  - Handles the Canvas generation, blob extraction, and the bundling into JSZip. Technical warnings about WASM polyfills are intentionally suppressed for better user experience.
-- `jszip.min.js`: Locally hosted dependency for generating ZIP archives.
+  - Handles the Canvas generation, blob extraction, and the bundling into JSZip.
+- `public/jszip.min.js`: Locally hosted dependency for generating ZIP archives, served statically by Vite.
 
 ## Modifying UI & i18n
 If adding new text to the UI:
