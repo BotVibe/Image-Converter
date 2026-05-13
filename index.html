@@ -53,16 +53,8 @@
                 <input type="range" id="qualitySlider" min="1" max="100" value="90">
             </div>
 
-            <small id="avifWarning" class="warning hidden" style="margin-bottom: 1rem;" data-i18n="avifWarning">AVIF has strict size limits. Ensure your dimensions are not too large.</small>
             <small id="formatWarning" class="warning hidden" style="margin-bottom: 1rem;"></small>
 
-        </section>
-
-        <section class="upload-panel">
-            <div id="dropZone" class="drop-zone">
-                <p data-i18n="dropText">Drag & Drop images here or click to select</p>
-                <input type="file" id="fileInput" multiple accept="image/*" class="hidden-input">
-            </div>
         </section>
 
         <section class="results-panel hidden" id="resultsPanel">
@@ -72,6 +64,13 @@
                 <button id="clearBtn" class="btn secondary" data-i18n="clearAll">Clear All</button>
             </div>
             <ul id="resultsList" class="results-list"></ul>
+        </section>
+
+        <section class="upload-panel">
+            <div id="dropZone" class="drop-zone">
+                <p data-i18n="dropText">Drag & Drop images here or click to select</p>
+                <input type="file" id="fileInput" multiple accept="image/*" class="hidden-input">
+            </div>
         </section>
     </main>
 

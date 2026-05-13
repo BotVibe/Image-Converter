@@ -9,7 +9,6 @@ const i18n = {
         maxWidth: "Max Width (px):",
         maxHeight: "Max Height (px):",
         keepAspectRatio: "Keep Aspect Ratio",
-        avifWarning: "AVIF has strict size limits. Ensure your dimensions are not too large.",
         dropText: "Drag & Drop images here or click to select",
         resultsTitle: "Converted Images",
         downloadZip: "Download All as ZIP",
@@ -17,13 +16,12 @@ const i18n = {
         processing: "Processing...",
         success: "Done",
         error: "Error",
-        download: "Download Compressed File",
+        remove: "Remove",
+        download: "Download",
         quality: "Quality",
         original: "Original",
         compressed: "Compressed",
-        unsupportedFormat: "Your browser does not natively support this format. Used WASM polyfill.",
-        showDetails: "Show Details"
-    },
+            },
     de: {
         title: "Bild Konverter",
         settingsTitle: "Einstellungen",
@@ -33,7 +31,6 @@ const i18n = {
         maxWidth: "Maximale Breite (px):",
         maxHeight: "Maximale Höhe (px):",
         keepAspectRatio: "Seitenverhältnis beibehalten",
-        avifWarning: "AVIF hat strenge Größenlimits. Bei großen Bildern bitte die Dimensionen anpassen.",
         dropText: "Bilder hier ablegen (Drag & Drop) oder klicken zur Auswahl",
         resultsTitle: "Konvertierte Bilder",
         downloadZip: "Alle als ZIP herunterladen",
@@ -41,13 +38,12 @@ const i18n = {
         processing: "Verarbeite...",
         success: "Fertig",
         error: "Fehler",
-        download: "Komprimierte Datei herunterladen",
+        remove: "Entfernen",
+        download: "Herunterladen",
         quality: "Qualität",
         original: "Original",
         compressed: "Komprimiert",
-        unsupportedFormat: "Ihr Browser unterstützt dieses Format nicht nativ. WASM Polyfill verwendet.",
-        showDetails: "Details anzeigen"
-    },
+            },
     fr: {
         title: "Convertisseur d'Images",
         settingsTitle: "Paramètres",
@@ -57,7 +53,6 @@ const i18n = {
         maxWidth: "Largeur max (px):",
         maxHeight: "Hauteur max (px):",
         keepAspectRatio: "Conserver les proportions",
-        avifWarning: "AVIF a des limites de taille strictes. Pensez à ajuster vos dimensions.",
         dropText: "Glissez et déposez des images ici ou cliquez pour sélectionner",
         resultsTitle: "Images Converties",
         downloadZip: "Tout télécharger en ZIP",
@@ -65,13 +60,12 @@ const i18n = {
         processing: "Traitement...",
         success: "Terminé",
         error: "Erreur",
-        download: "Télécharger le Fichier Compressé",
+        remove: "Supprimer",
+        download: "Télécharger",
         quality: "Qualité",
         original: "Original",
         compressed: "Compressé",
-        unsupportedFormat: "Votre navigateur ne prend pas en charge ce format nativement. Polyfill WASM utilisé.",
-        showDetails: "Afficher les détails"
-    },
+            },
     it: {
         title: "Convertitore di Immagini",
         settingsTitle: "Impostazioni",
@@ -81,7 +75,6 @@ const i18n = {
         maxWidth: "Larghezza max (px):",
         maxHeight: "Altezza max (px):",
         keepAspectRatio: "Mantieni proporzioni",
-        avifWarning: "AVIF ha limiti di dimensione rigidi. Considera di impostare dimensioni adeguate.",
         dropText: "Trascina le immagini qui o clicca per selezionare",
         resultsTitle: "Immagini Convertite",
         downloadZip: "Scarica tutto come ZIP",
@@ -89,13 +82,12 @@ const i18n = {
         processing: "Elaborazione...",
         success: "Completato",
         error: "Errore",
-        download: "Scarica File Compresso",
+        remove: "Rimuovi",
+        download: "Scarica",
         quality: "Qualità",
         original: "Originale",
         compressed: "Compresso",
-        unsupportedFormat: "Il tuo browser non supporta questo formato nativamente. È stato utilizzato il polyfill WASM.",
-        showDetails: "Mostra Dettagli"
-    }
+            }
 };
 
 let currentLang = 'en';
@@ -173,23 +165,39 @@ function initUI() {
     initI18n();
 
     const formatSelect = document.getElementById('formatSelect');
-    const avifWarning = document.getElementById('avifWarning');
     const formatWarning = document.getElementById('formatWarning');
+    const inputWidth = document.getElementById('inputWidth');
+    const inputHeight = document.getElementById('inputHeight');
 
-    formatSelect.addEventListener('change', (e) => {
-        if (e.target.value === 'image/avif') {
-            avifWarning.classList.remove('hidden');
-        } else {
-            avifWarning.classList.add('hidden');
+    const enforceLimits = () => {
+        inputWidth.max = "4096";
+        inputHeight.max = "4096";
+
+        if (!inputWidth.value || parseInt(inputWidth.value) > 4096) {
+            inputWidth.value = 4096;
         }
-    });
+        if (!inputHeight.value || parseInt(inputHeight.value) > 4096) {
+            inputHeight.value = 4096;
+        }
+    };
+
+    const clampLimits = () => {
+        if (inputWidth.value && parseInt(inputWidth.value) > 4096) inputWidth.value = 4096;
+        if (inputHeight.value && parseInt(inputHeight.value) > 4096) inputHeight.value = 4096;
+    };
+
+    formatSelect.addEventListener('change', enforceLimits);
+    inputWidth.addEventListener('change', enforceLimits);
+    inputHeight.addEventListener('change', enforceLimits);
+    inputWidth.addEventListener('input', clampLimits);
+    inputHeight.addEventListener('input', clampLimits);
+
+    enforceLimits();
 
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
     const qualitySlider = document.getElementById('qualitySlider');
     const qualityValue = document.getElementById('qualityValue');
-    const inputWidth = document.getElementById('inputWidth');
-    const inputHeight = document.getElementById('inputHeight');
 
     // Quality slider text update
     qualitySlider.addEventListener('input', (e) => {
@@ -409,11 +417,10 @@ async function processImage(file, existingId = null) {
         let blob;
         let actualFormat = format;
         let actualExtension = extension;
-        let hasFormatError = false;
 
         // If format is WebP or AVIF AND browser lacks native support, use WASM Encoder!
         if (format === 'image/avif' && !nativeSupport['image/avif']) {
-            hasFormatError = true; // We show the format warning as info that WASM was used
+
             const imageData = ctx.getImageData(0, 0, width, height);
             const qualityValue = Math.round(quality * 100); // 1 to 100
             const buffer = await encodeAvif(imageData, { quality: qualityValue });
@@ -421,7 +428,7 @@ async function processImage(file, existingId = null) {
             actualFormat = 'image/avif';
             actualExtension = 'avif';
         } else if (format === 'image/webp' && !nativeSupport['image/webp']) {
-            hasFormatError = true;
+
             const imageData = ctx.getImageData(0, 0, width, height);
             const qualityValue = quality * 100;
             const buffer = await encodeWebp(imageData, { quality: qualityValue });
@@ -438,7 +445,6 @@ async function processImage(file, existingId = null) {
             if (blob && format !== blob.type) {
                 actualFormat = blob.type;
                 actualExtension = actualFormat.split('/')[1];
-                if (actualExtension === 'png') hasFormatError = true;
             }
         }
 
@@ -476,27 +482,17 @@ async function processImage(file, existingId = null) {
 
         const statusContainer = document.getElementById(`status-${id}`);
 
-        if (hasFormatError) {
-            statusContainer.innerHTML = `
-                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem;">
-                    <a href="${blobUrl}" download="${escapeHTML(newName)}" class="btn primary" style="text-decoration:none; display:inline-block;">
-                        <span data-i18n="download">${i18n[currentLang].download}</span>
-                    </a>
-                    <button class="btn secondary" style="font-size: 0.8rem; padding: 0.2rem 0.5rem;" onclick="document.getElementById('error-details-${id}').classList.toggle('hidden')">
-                        <span data-i18n="showDetails">${i18n[currentLang].showDetails}</span>
-                    </button>
-                </div>
-                <div id="error-details-${id}" class="error-details hidden" data-i18n="unsupportedFormat">
-                    ${i18n[currentLang].unsupportedFormat}
-                </div>
-            `;
-        } else {
-            statusContainer.innerHTML = `
+        // Display normal success state regardless of whether WASM polyfill was used
+        statusContainer.innerHTML = `
+            <div class="action-buttons-row">
                 <a href="${blobUrl}" download="${escapeHTML(newName)}" class="btn primary" style="text-decoration:none; display:inline-block;">
                     <span data-i18n="download">${i18n[currentLang].download}</span>
                 </a>
-            `;
-        }
+                <button class="btn delete-btn" title="${i18n[currentLang].remove}" onclick="removeResult('${id}')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                </button>
+            </div>
+        `;
 
     } catch (e) {
         showError(id);
@@ -524,6 +520,32 @@ function showError(id) {
     const statusContainer = document.getElementById(`status-${id}`);
     statusContainer.innerHTML = `<span class="status-error" data-i18n="error">${i18n[currentLang].error}</span>`;
 }
+
+
+window.removeResult = function(id) {
+    const li = document.getElementById(`item-${id}`);
+    if (!li) return;
+
+    // Revoke object URLs to prevent memory leaks
+    const preview = li.querySelector('.result-preview');
+    if (preview && preview.src.startsWith('blob:')) {
+        URL.revokeObjectURL(preview.src);
+    }
+    const download = li.querySelector('a[download]');
+    if (download && download.href.startsWith('blob:')) {
+        URL.revokeObjectURL(download.href);
+    }
+
+    li.remove();
+    originalFiles.delete(id);
+
+    const index = convertedFiles.findIndex(f => f.id === id);
+    if (index > -1) convertedFiles.splice(index, 1);
+
+    if (convertedFiles.length === 0) {
+        document.getElementById('resultsPanel').classList.add('hidden');
+    }
+};
 
 function clearAll() {
     // Revoke object URLs to prevent memory leaks
