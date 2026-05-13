@@ -120,6 +120,8 @@ function initI18n() {
 }
 
 function applyLanguage() {
+    document.documentElement.lang = currentLang;
+
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
         if (i18n[currentLang][key]) {
@@ -130,6 +132,11 @@ function applyLanguage() {
             }
         }
     });
+
+    // Explicitly update document title if it exists in i18n
+    if (i18n[currentLang] && i18n[currentLang]['title']) {
+        document.title = i18n[currentLang]['title'];
+    }
 }
 
 import encodeAvif, { init as initAvif } from '@jsquash/avif/encode';
@@ -365,11 +372,21 @@ function createResultItem(id, originalFile) {
     li.className = 'result-item';
     li.id = `item-${id}`;
 
+    const safeName = escapeHTML(originalFile.name);
+    // Determine preview text based on language, fallback to English
+    const previewTextMap = {
+        en: 'Preview of',
+        de: 'Vorschau von',
+        fr: 'Aperçu de',
+        it: 'Anteprima di'
+    };
+    const previewPrefix = previewTextMap[currentLang] || previewTextMap.en;
+
     li.innerHTML = `
         <div class="result-info">
-            <img src="" class="result-preview" id="preview-${id}" alt="Preview">
+            <img src="" class="result-preview" id="preview-${id}" alt="${previewPrefix} ${safeName}">
             <div class="result-details">
-                <span class="result-name">${escapeHTML(originalFile.name)}</span>
+                <span class="result-name">${safeName}</span>
                 <span class="result-meta" id="meta-${id}">...</span>
             </div>
         </div>
