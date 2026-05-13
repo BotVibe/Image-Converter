@@ -1,14 +1,14 @@
 :root {
-    --primary-color: #4a90e2;
-    --primary-hover: #357abd;
-    --bg-color: #f5f7fa;
-    --card-bg: #ffffff;
-    --text-color: #333333;
-    --text-muted: #666666;
-    --border-color: #e1e4e8;
+    --primary-color: #b6f228;
+    --primary-hover: #a5df20;
+    --bg-color: #0b0f19;
+    --card-bg: #151b2b;
+    --text-color: #f5f7fa;
+    --text-muted: #9aa0a6;
+    --border-color: #2a3441;
     --warning-color: #e74c3c;
     --success-color: #2ecc71;
-    --radius: 2px;
+    --radius: 0px;
 }
 
 * {
@@ -42,7 +42,8 @@ select {
     padding: 0.5rem;
     border: 1px solid var(--border-color);
     border-radius: var(--radius);
-    background-color: #fff;
+    background-color: var(--card-bg);
+    color: var(--text-color);
     font-size: 1rem;
     cursor: pointer;
 }
@@ -86,6 +87,8 @@ h2 {
     padding: 0.5rem;
     border: 1px solid var(--border-color);
     border-radius: var(--radius);
+    background-color: var(--bg-color);
+    color: var(--text-color);
     font-size: 1rem;
 }
 
@@ -123,12 +126,12 @@ h2 {
     padding: 3rem 1rem;
     text-align: center;
     cursor: pointer;
-    background-color: rgba(74, 144, 226, 0.05);
+    background-color: rgba(182, 242, 40, 0.05);
     transition: background-color 0.2s ease;
 }
 
 .drop-zone:hover, .drop-zone.dragover {
-    background-color: rgba(74, 144, 226, 0.15);
+    background-color: rgba(182, 242, 40, 0.15);
 }
 
 .drop-zone p {
@@ -163,7 +166,7 @@ h2 {
 
 .btn.primary {
     background-color: var(--primary-color);
-    color: white;
+    color: #0b0f19;
 }
 
 .btn.secondary {
@@ -273,9 +276,28 @@ input[type=range] {
 }
 
 .delete-btn:hover {
-    background-color: #fee2e2;
+    background-color: rgba(231, 76, 60, 0.1);
     border-color: var(--warning-color);
     color: var(--warning-color);
+}
+
+footer {
+    text-align: center;
+    padding: 2rem 1rem;
+    margin-top: 2rem;
+    border-top: 1px solid var(--border-color);
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+footer a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: opacity 0.2s ease;
+}
+
+footer a:hover {
+    opacity: 0.8;
 }
 
 /* Media Queries for Responsive Design */
