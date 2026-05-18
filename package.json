@@ -4,7 +4,7 @@
   "description": "A simple, fast, and 100% privacy-compliant image converter built entirely with Vanilla JavaScript, HTML, and CSS. The tool runs completely in the browser without sending any data to external servers.",
   "main": "app.js",
   "scripts": {
-    "test": "playwright test",
+    "test": "node run-tests.cjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
