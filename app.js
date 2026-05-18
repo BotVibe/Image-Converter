@@ -299,9 +299,28 @@ async function downloadZip() {
 
     try {
         const zip = new JSZip();
+        const usedNames = new Set();
 
         convertedFiles.forEach(file => {
-            zip.file(file.name, file.blob);
+            let safeName = sanitizeFilename(file.name);
+
+            // Handle filename collisions
+            let finalName = safeName;
+            let counter = 1;
+            while (usedNames.has(finalName)) {
+                const nameParts = safeName.split('.');
+                if (nameParts.length > 1) {
+                    const ext = nameParts.pop();
+                    const base = nameParts.join('.');
+                    finalName = `${base} (${counter}).${ext}`;
+                } else {
+                    finalName = `${safeName} (${counter})`;
+                }
+                counter++;
+            }
+            usedNames.add(finalName);
+
+            zip.file(finalName, file.blob);
         });
 
         const content = await zip.generateAsync({ type: 'blob' });
