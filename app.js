@@ -23,7 +23,8 @@ const i18n = {
         compressed: "Compressed",
         howItWorksTitle: "How it works & Privacy",
         howItWorksText: "This tool converts your images directly within your browser. By utilizing your device's processing power and modern browser capabilities, no images are ever uploaded to an external server. This guarantees 100% privacy and lightning-fast processing, as your data never leaves your device.",
-        githubRepo: "View Source on GitHub"
+        githubRepo: "View Source on GitHub",
+        invalidFileType: "Invalid image file type"
             },
     de: {
         title: "Bild Konverter",
@@ -48,7 +49,8 @@ const i18n = {
         compressed: "Komprimiert",
         howItWorksTitle: "Funktionsweise & Datenschutz",
         howItWorksText: "Dieses Tool konvertiert Ihre Bilder direkt in Ihrem Browser. Durch die Nutzung der Rechenleistung Ihres Geräts und moderner Browserfunktionen werden niemals Bilder auf einen externen Server hochgeladen. Dies garantiert 100% Datenschutz und eine blitzschnelle Verarbeitung, da Ihre Daten Ihr Gerät nie verlassen.",
-        githubRepo: "Quellcode auf GitHub ansehen"
+        githubRepo: "Quellcode auf GitHub ansehen",
+        invalidFileType: "Ungültiger Bilddateityp"
             },
     fr: {
         title: "Convertisseur d'Images",
@@ -73,7 +75,8 @@ const i18n = {
         compressed: "Compressé",
         howItWorksTitle: "Comment ça marche et Confidentialité",
         howItWorksText: "Cet outil convertit vos images directement dans votre navigateur. En utilisant la puissance de traitement de votre appareil et les capacités des navigateurs modernes, aucune image n'est jamais téléchargée sur un serveur externe. Cela garantit une confidentialité à 100 % et un traitement ultra-rapide, car vos données ne quittent jamais votre appareil.",
-        githubRepo: "Voir le code source sur GitHub"
+        githubRepo: "Voir le code source sur GitHub",
+        invalidFileType: "Type de fichier image invalide"
             },
     it: {
         title: "Convertitore di Immagini",
@@ -98,7 +101,8 @@ const i18n = {
         compressed: "Compresso",
         howItWorksTitle: "Come funziona e Privacy",
         howItWorksText: "Questo strumento converte le tue immagini direttamente nel tuo browser. Utilizzando la potenza di elaborazione del tuo dispositivo e le moderne capacità del browser, nessuna immagine viene mai caricata su un server esterno. Questo garantisce il 100% di privacy e un'elaborazione fulminea, poiché i tuoi dati non lasciano mai il tuo dispositivo.",
-        githubRepo: "Visualizza il codice sorgente su GitHub"
+        githubRepo: "Visualizza il codice sorgente su GitHub",
+        invalidFileType: "Tipo di file immagine non valido"
             }
 };
 
@@ -323,14 +327,112 @@ async function downloadZip() {
     }
 }
 
-function handleFiles(files) {
+
+async function validateImageFile(file) {
+    if (!file || !(file instanceof File)) return false;
+
+    const extensionMatch = file.name.match(/\.([^.]+)$/);
+    if (!extensionMatch) return false;
+    const extension = extensionMatch[1].toLowerCase();
+
+    const validExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'gif', 'bmp', 'svg'];
+    if (!validExtensions.includes(extension)) return false;
+
+    // SVG validation: read first 512 bytes as text and check for <svg or <?xml
+    if (extension === 'svg') {
+        const text = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = () => reject(new Error("Failed to read SVG file"));
+            reader.readAsText(file.slice(0, 512));
+        }).catch(() => null);
+
+        if (!text) return false;
+
+        // Simple heuristic: SVG must contain an xml declaration or an svg tag
+        return (text.includes('<svg') || text.includes('<?xml'));
+    }
+
+    // Binary file validation using magic bytes
+    const buffer = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(new Uint8Array(e.target.result));
+        reader.onerror = () => reject(new Error("Failed to read file"));
+        reader.readAsArrayBuffer(file.slice(0, 16));
+    }).catch(() => null);
+
+    if (!buffer || buffer.length < 4) return false;
+
+    const hexBytes = Array.from(buffer).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+
+    // JPEG: FF D8 FF
+    if ((extension === 'jpg' || extension === 'jpeg') && hexBytes.startsWith('FFD8FF')) return true;
+
+    // PNG: 89 50 4E 47 0D 0A 1A 0A
+    if (extension === 'png' && hexBytes.startsWith('89504E470D0A1A0A')) return true;
+
+    // WebP: RIFF .... WEBP  (Bytes 0-3 are RIFF, Bytes 8-11 are WEBP)
+    if (extension === 'webp' && buffer.length >= 12) {
+        const riff = String.fromCharCode(buffer[0], buffer[1], buffer[2], buffer[3]);
+        const webp = String.fromCharCode(buffer[8], buffer[9], buffer[10], buffer[11]);
+        if (riff === 'RIFF' && webp === 'WEBP') return true;
+    }
+
+    // GIF: GIF87a or GIF89a
+    if (extension === 'gif' && (hexBytes.startsWith('474946383761') || hexBytes.startsWith('474946383961'))) return true;
+
+    // BMP: BM (42 4D)
+    if (extension === 'bmp' && hexBytes.startsWith('424D')) return true;
+
+    // AVIF: ftypavif (starting at byte 4) or ftypavis or similar
+    if (extension === 'avif' && buffer.length >= 12) {
+        const ftyp = String.fromCharCode(buffer[4], buffer[5], buffer[6], buffer[7]);
+        const subtype = String.fromCharCode(buffer[8], buffer[9], buffer[10], buffer[11]);
+        if (ftyp === 'ftyp' && (subtype === 'avif' || subtype === 'avis')) return true;
+    }
+
+    return false;
+}
+
+async function handleFiles(files) {
     const resultsPanel = document.getElementById('resultsPanel');
     resultsPanel.classList.remove('hidden');
 
     for (const file of files) {
-        if (!file.type.startsWith('image/')) continue;
-        processImage(file);
+        const isValid = await validateImageFile(file);
+        if (isValid) {
+            processImage(file);
+        } else {
+            handleInvalidFile(file);
+        }
     }
+}
+
+
+function handleInvalidFile(file) {
+    const id = Date.now() + Math.random().toString(36).substr(2, 9);
+    originalFiles.set(id, file); // Store so we can track and remove it
+
+    // Use the existing createResultItem to build the UI element
+    const li = createResultItem(id, file);
+
+    // Update the UI to show the error state
+    const statusContainer = document.getElementById(`status-${id}`);
+    statusContainer.innerHTML = `
+        <div class="action-buttons-row">
+            <button class="btn delete-btn" title="${i18n[currentLang].remove}" onclick="removeResult('${id}')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+            </button>
+        </div>
+    `;
+
+    // Set the meta text to the error message (red text)
+    const metaContainer = document.getElementById(`meta-${id}`);
+    metaContainer.innerHTML = `<span class="status-error" data-i18n="invalidFileType" style="color: #ff4b4b;">${i18n[currentLang].invalidFileType}</span>`;
+
+    // Clear the preview image source or set a placeholder
+    const preview = document.getElementById(`preview-${id}`);
+    preview.style.display = 'none'; // Hide broken image icon
 }
 
 function calculateDimensions(origWidth, origHeight) {
