@@ -182,13 +182,17 @@ async function initWasmIfNeeded() {
     }
 }
 
-function initUI() {
-    checkNativeSupport();
+// Auto-recompress trigger
+function triggerRecompress() {
+    if (originalFiles.size > 0) {
+        for (const [id, file] of originalFiles.entries()) {
+            processImage(file, id);
+        }
+    }
+}
 
-    initI18n();
-
+function setupFormLimits() {
     const formatSelect = document.getElementById('formatSelect');
-    const formatWarning = document.getElementById('formatWarning');
     const inputWidth = document.getElementById('inputWidth');
     const inputHeight = document.getElementById('inputHeight');
 
@@ -216,9 +220,12 @@ function initUI() {
     inputHeight.addEventListener('input', clampLimits);
 
     enforceLimits();
+}
 
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('fileInput');
+function setupQualityAndFormat() {
+    const formatSelect = document.getElementById('formatSelect');
+    const inputWidth = document.getElementById('inputWidth');
+    const inputHeight = document.getElementById('inputHeight');
     const qualitySlider = document.getElementById('qualitySlider');
     const qualityValue = document.getElementById('qualityValue');
 
@@ -227,19 +234,15 @@ function initUI() {
         qualityValue.textContent = e.target.value;
     });
 
-    // Auto-recompress trigger
-    const triggerRecompress = () => {
-        if (originalFiles.size > 0) {
-            for (const [id, file] of originalFiles.entries()) {
-                processImage(file, id);
-            }
-        }
-    };
-
     qualitySlider.addEventListener('change', triggerRecompress);
     formatSelect.addEventListener('change', triggerRecompress);
     inputWidth.addEventListener('change', triggerRecompress);
     inputHeight.addEventListener('change', triggerRecompress);
+}
+
+function setupDragAndDrop() {
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
 
     dropZone.addEventListener('click', () => fileInput.click());
 
@@ -268,10 +271,14 @@ function initUI() {
         // Reset so the same file can be selected again
         fileInput.value = '';
     });
+}
 
+function setupActionButtons() {
     document.getElementById('clearBtn').addEventListener('click', clearAll);
     document.getElementById('downloadZipBtn').addEventListener('click', downloadZip);
+}
 
+function setupAspectRatioToggle() {
     const keepAspectRatio = document.getElementById('keepAspectRatio');
     const labelWidth = document.getElementById('labelWidth');
     const labelHeight = document.getElementById('labelHeight');
@@ -291,6 +298,17 @@ function initUI() {
     keepAspectRatio.addEventListener('change', updateDimensionLabels);
     // Init state
     updateDimensionLabels();
+}
+
+function initUI() {
+    checkNativeSupport();
+    initI18n();
+
+    setupFormLimits();
+    setupQualityAndFormat();
+    setupDragAndDrop();
+    setupActionButtons();
+    setupAspectRatioToggle();
 }
 
 async function downloadZip() {
