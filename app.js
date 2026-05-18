@@ -367,6 +367,22 @@ function escapeHTML(str) {
     return p.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+function sanitizeFilename(filename) {
+    if (!filename || typeof filename !== 'string') return 'image';
+    // 1. Replace backslashes with forward slashes for consistent processing
+    let sanitized = filename.replace(/\\/g, '/');
+    // 2. Extract only the base filename (last component of the path)
+    // This effectively prevents Zip Slip by removing any directory context
+    sanitized = sanitized.split('/').pop();
+    // 3. Remove characters that are problematic across different filesystems
+    // or could still be used for path traversal.
+    sanitized = sanitized.replace(/[\\\/\x00-\x1f\x7f<>:"|?*]/g, '');
+    // 4. Prevent "hidden" files or traversal dots at the start
+    sanitized = sanitized.replace(/^[\s.]+/, '');
+    // 5. Fallback for empty filenames
+    return sanitized || 'image';
+}
+
 function createResultItem(id, originalFile) {
     const li = document.createElement('li');
     li.className = 'result-item';
@@ -482,7 +498,8 @@ async function processImage(file, existingId = null) {
             return;
         }
 
-        const newName = file.name.replace(/\.[^/.]+$/, "") + `.${actualExtension}`;
+        const safeBaseName = sanitizeFilename(file.name).replace(/\.[^/.]+$/, "");
+        const newName = safeBaseName + `.${actualExtension}`;
 
         // Store for ZIP
         const existingIndex = convertedFiles.findIndex(f => f.id === id);
