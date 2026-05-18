@@ -584,3 +584,5 @@ function clearAll() {
 document.addEventListener('DOMContentLoaded', () => {
     initUI();
 });
+
+export { calculateDimensions };
