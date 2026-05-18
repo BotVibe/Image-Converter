@@ -148,6 +148,7 @@ import encodeWebp, { init as initWebp } from '@jsquash/webp/encode';
 
 const convertedFiles = []; // To store blobs for ZIP
 const originalFiles = new Map(); // To store original files mapping (id -> file)
+const imageCache = new Map(); // To store decoded images (id -> ImageBitmap/HTMLImageElement)
 
 let wasmInitialized = false;
 
@@ -575,7 +576,21 @@ async function processImage(file, existingId = null) {
         // Initialize WASM tools lazily
         await initWasmIfNeeded();
 
-        const img = await loadImage(file);
+        let img;
+        if (imageCache.has(id)) {
+            img = imageCache.get(id);
+        } else {
+            const rawImg = await loadImage(file);
+            // Use ImageBitmap for better performance if supported
+            if (window.createImageBitmap) {
+                img = await createImageBitmap(rawImg);
+                imageCache.set(id, img);
+            } else {
+                img = rawImg;
+                imageCache.set(id, img);
+            }
+        }
+
         const { width, height } = calculateDimensions(img.width, img.height);
 
         const canvas = document.createElement('canvas');
@@ -724,6 +739,13 @@ window.removeResult = function(id) {
     li.remove();
     originalFiles.delete(id);
 
+    // Release cached image
+    if (imageCache.has(id)) {
+        const cachedImg = imageCache.get(id);
+        if (cachedImg.close) cachedImg.close(); // Close ImageBitmap
+        imageCache.delete(id);
+    }
+
     const index = convertedFiles.findIndex(f => f.id === id);
     if (index > -1) convertedFiles.splice(index, 1);
 
@@ -752,6 +774,12 @@ function clearAll() {
     document.getElementById('resultsPanel').classList.add('hidden');
     convertedFiles.length = 0;
     originalFiles.clear();
+
+    // Release all cached images
+    for (const cachedImg of imageCache.values()) {
+        if (cachedImg.close) cachedImg.close();
+    }
+    imageCache.clear();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
