@@ -150,6 +150,11 @@ const convertedFiles = []; // To store blobs for ZIP
 const originalFiles = new Map(); // To store original files mapping (id -> file)
 const imageCache = new Map(); // To store decoded images (id -> ImageBitmap/HTMLImageElement)
 
+// Concurrency control for image processing
+const MAX_CONCURRENT = 3;
+let activeProcessing = 0;
+const processingQueue = [];
+
 let wasmInitialized = false;
 
 // Check if browser natively supports the formats
@@ -572,6 +577,12 @@ async function processImage(file, existingId = null) {
     // Get quality from slider
     const quality = parseInt(document.getElementById('qualitySlider').value, 10) / 100;
 
+    // Concurrency control: wait if we're already processing max concurrent images
+    if (activeProcessing >= MAX_CONCURRENT) {
+        await new Promise(resolve => processingQueue.push(resolve));
+    }
+    activeProcessing++;
+
     try {
         // Initialize WASM tools lazily
         await initWasmIfNeeded();
@@ -697,6 +708,14 @@ async function processImage(file, existingId = null) {
     } catch (e) {
         showError(id);
         console.error("Error processing image:", e);
+    } finally {
+        // Release concurrency slot
+        activeProcessing--;
+        if (processingQueue.length > 0) {
+            // Unblock the next waiting processImage call
+            const nextResolve = processingQueue.shift();
+            nextResolve();
+        }
     }
 }
 
