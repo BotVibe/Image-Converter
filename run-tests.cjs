@@ -3,7 +3,7 @@ const path = require('path');
 const subprocess = require('child_process');
 
 const appJsPath = path.join(__dirname, 'app.js');
-const testJsPath = path.join(__dirname, 'tests', 'calculateDimensions.test.js');
+const testsDir = path.join(__dirname, 'tests');
 
 let appJsContent = fs.readFileSync(appJsPath, 'utf8');
 
@@ -11,7 +11,11 @@ let appJsContent = fs.readFileSync(appJsPath, 'utf8');
 appJsContent = appJsContent.replace(/^import .*$/gm, '// $&');
 appJsContent = appJsContent.replace(/^export .*$/gm, '// $&');
 
-const testJsContent = fs.readFileSync(testJsPath, 'utf8');
+const testFiles = fs.readdirSync(testsDir).filter(f => f.endsWith('.test.js'));
+let testJsContent = '';
+for (const file of testFiles) {
+    testJsContent += fs.readFileSync(path.join(testsDir, file), 'utf8') + '\n';
+}
 
 const runnerTemplate = `
 class MockElement {
@@ -20,6 +24,7 @@ class MockElement {
         this.value = "";
         this.checked = false;
         this.innerHTML = "";
+        this.style = {};
     }
     appendChild() {}
     addEventListener() {}
@@ -44,6 +49,9 @@ const mockDocument = {
     createElement: (tag) => {
         return new MockElement(tag);
     },
+    createTextNode: (text) => {
+        return text;
+    },
     querySelectorAll: () => [],
     addEventListener: () => {}
 };
@@ -57,19 +65,50 @@ const mockWindow = {
 };
 
 // Inject mocks into the scope
-const runner = (document, navigator, window) => {
+const runner = async (document, navigator, window) => {
+    class File {
+        constructor(parts, name, options) {
+            this.name = name;
+            this.type = options ? options.type : '';
+            this.size = parts[0] ? parts[0].byteLength : 0;
+            this._buffer = parts[0];
+        }
+        slice(start, end) {
+            // slice the array buffer
+            return new Blob([this._buffer.slice(start, end)]);
+        }
+    }
+    class Blob {
+        constructor(parts, options) {
+            this._buffer = parts[0];
+            this.size = parts[0] ? parts[0].byteLength : 0;
+            this.type = options ? options.type : '';
+        }
+    }
+    class FileReader {
+        readAsArrayBuffer(blob) {
+            setTimeout(() => {
+                this.onload({ target: { result: blob._buffer } });
+            }, 0);
+        }
+        readAsText(blob) {
+            setTimeout(() => {
+                // very simple mock for text since we just test PDF/TXT/SVG
+                this.onload({ target: { result: new TextDecoder().decode(blob._buffer) } });
+            }, 0);
+        }
+    }
+
     ${appJsContent}
 
     ${testJsContent}
 };
 
-try {
-    runner(mockDocument, mockNavigator, mockWindow);
-} catch (e) {
+runner(mockDocument, mockNavigator, mockWindow).catch(e => {
     console.error("Test failed:");
     console.error(e.stack || e.message);
     process.exit(1);
-}
+});
 `;
 
 const tempFile = 'temp_runner.js';
