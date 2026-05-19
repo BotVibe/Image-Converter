@@ -16,6 +16,8 @@ A simple, fast, and 100% privacy-compliant image converter built entirely with V
 - **100% Privacy:** All processing happens client-side. The required `JSZip` library is hosted locally, ensuring absolutely zero external network requests or tracking. An explanation of how this works is explicitly shown in the UI.
 - **Multilingual UI:** Supports English, German, French, and Italian with auto-detection based on browser language.
 
+> **Note on Documentation Maintenance:** The documentation for this project, including this `README.md` and the `AGENTS.md` guidelines, is automatically maintained and updated by AI agents as the project evolves to ensure it remains accurate and up-to-date with any significant architectural or feature changes.
+
 ## Usage / Setup
 
 This project uses Vite to bundle the WebAssembly encoders efficiently.

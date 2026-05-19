@@ -25,6 +25,10 @@ When interacting with this repository, AI agents must strictly adhere to the fol
    - Since users upload arbitrary files, the filename (`file.name`) can be an attack vector for Self-XSS.
    - Always use the provided `escapeHTML()` utility function in `app.js` before interpolating dynamic text into `innerHTML` templates.
 
+## Documentation Maintenance
+- The AI agent must automatically update `README.md` and `AGENTS.md` whenever significant architectural, feature, or structural changes are made to the codebase.
+- Ensure that any new functionality, dependencies, or rules are reflected in these documentation files.
+
 ## File Structure & Responsibilities
 
 - `index.html`: The semantic structure of the UI. Contains the `data-i18n` tags used for localization. The UI is structured sequentially: Settings Panel, Results Panel (Converted Images), Upload Panel, Info Panel (Privacy Explanation), and finally the Footer.
