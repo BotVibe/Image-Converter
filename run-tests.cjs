@@ -26,7 +26,14 @@ class MockElement {
         this.innerHTML = "";
         this.style = {};
     }
-    appendChild() {}
+    appendChild(child) {
+        if (typeof child === 'string') {
+            this.innerHTML += child
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+        }
+    }
     addEventListener() {}
     classList = {
         add: () => {},
