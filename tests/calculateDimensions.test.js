@@ -67,6 +67,48 @@ function test() {
     res = calculateDimensions(0, 0);
     assert(res.width === 0 && res.height === 0, "Should handle 0x0 input");
 
+    // Case 9: Keep Aspect Ratio OFF, only height provided
+    keepAspect.checked = false;
+    inputWidth.value = "";
+    inputHeight.value = "500";
+    res = calculateDimensions(1000, 1000);
+    assert(res.width === 1000 && res.height === 500, "Should only change height if width is empty");
+
+    // Case 10: Keep Aspect Ratio OFF, both inputs empty
+    keepAspect.checked = false;
+    inputWidth.value = "";
+    inputHeight.value = "";
+    res = calculateDimensions(800, 600);
+    assert(res.width === 800 && res.height === 600, "Should return original if no targets provided (keepAspect OFF)");
+
+    // Case 11: Keep Aspect Ratio ON, only height provided
+    keepAspect.checked = true;
+    inputWidth.value = "";
+    inputHeight.value = "500";
+    res = calculateDimensions(1000, 1000);
+    assert(res.width === 500 && res.height === 500, "Should scale based on height preserving aspect ratio");
+
+    // Case 12: Non-square original dimensions with square target constraints
+    keepAspect.checked = true;
+    inputWidth.value = "500";
+    inputHeight.value = "500";
+    res = calculateDimensions(1000, 500);
+    assert(res.width === 500 && res.height === 250, "Should scale down non-square image to fit square constraints");
+
+    // Case 13: Invalid non-numeric string inputs
+    keepAspect.checked = true;
+    inputWidth.value = "abc";
+    inputHeight.value = "xyz";
+    res = calculateDimensions(800, 600);
+    assert(res.width === 800 && res.height === 600, "Should ignore NaN inputs and return original");
+
+    // Case 14: Handling of exactly 0 as an input (which evaluates as falsy)
+    keepAspect.checked = false;
+    inputWidth.value = "0";
+    inputHeight.value = "0";
+    res = calculateDimensions(800, 600);
+    assert(res.width === 800 && res.height === 600, "Should ignore 0 target inputs as they evaluate to falsy");
+
     console.log("✅ All calculateDimensions tests passed!");
 }
 
