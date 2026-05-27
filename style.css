@@ -260,6 +260,7 @@ h2 {
     cursor: pointer;
     transition: transform 0.1s ease-out, box-shadow 0.1s ease-out, background-color 0.2s ease;
     box-shadow: var(--shadow-brutal);
+    display: inline-block; /* Ensure <a> tags behave like buttons for transforms */
 }
 
 .btn:hover {
@@ -267,8 +268,8 @@ h2 {
 }
 
 .btn:active {
-    box-shadow: var(--shadow-brutal-active);
-    transform: translate(4px, 4px);
+    box-shadow: var(--shadow-brutal-active) !important;
+    transform: translate(4px, 4px) !important;
 }
 
 .btn.primary {
@@ -282,9 +283,6 @@ h2 {
     color: var(--text-color);
     border-color: var(--text-muted);
     box-shadow: 4px 4px 0px var(--text-muted);
-}
-.btn.secondary:active {
-    box-shadow: 0px 0px 0px var(--text-muted);
 }
 
 .results-list {
