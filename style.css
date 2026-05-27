@@ -33,16 +33,16 @@
 :root {
     --primary-color: #b6f228;
     --primary-hover: #a5df20;
-    --bg-color: #0b0f19;
-    --card-bg: #151b2b;
-    --text-color: #f5f7fa;
-    --text-muted: #9aa0a6;
+    --bg-color: #1e293b;
+    --card-bg: #334155;
+    --text-color: #f8fafc;
+    --text-muted: #cbd5e1;
 
     /* Neobrutalism Design Variables */
-    --border-color: #b6f228; /* Using primary color for borders in dark mode */
+    --border-color: #0f172a; /* Dark border to contrast with the slate background */
     --border-width: 3px;
-    --warning-color: #e74c3c;
-    --success-color: #2ecc71;
+    --warning-color: #ef4444;
+    --success-color: #22c55e;
     --radius: 8px; /* Slightly rounded edges as in webideapp.com */
     --shadow-brutal: 4px 4px 0px var(--border-color);
     --shadow-brutal-active: 0px 0px 0px var(--border-color);
@@ -100,38 +100,38 @@ select:focus {
 
 main {
     max-width: 900px;
-    margin: 2rem auto;
-    padding: 0 1rem;
+    margin: 3rem auto;
+    padding: 0 1.5rem;
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 3rem;
 }
 
 section {
     background-color: var(--card-bg);
-    padding: 1.5rem;
+    padding: 2.5rem;
     border-radius: var(--radius);
     border: var(--border-width) solid var(--border-color);
     box-shadow: var(--shadow-brutal);
 }
 
 h2 {
-    margin-bottom: 1rem;
-    font-size: 1.25rem;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
     border-bottom: var(--border-width) solid var(--border-color);
-    padding-bottom: 0.5rem;
+    padding-bottom: 0.75rem;
 }
 
 .settings-panel .form-group {
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
     display: flex;
     flex-direction: column;
 }
 
 .settings-panel label {
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.5rem;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 1rem;
 }
 
 .settings-panel input[type="number"] {
@@ -368,8 +368,68 @@ select option:disabled {
 }
 
 input[type=range] {
+    -webkit-appearance: none;
     width: 100%;
+    background: transparent;
     margin-top: 0.5rem;
+}
+
+input[type=range]:focus {
+    outline: none;
+}
+
+input[type=range]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 12px;
+    cursor: pointer;
+    background: var(--bg-color);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: var(--radius);
+    box-shadow: 2px 2px 0px var(--border-color);
+}
+
+input[type=range]::-webkit-slider-thumb {
+    height: 24px;
+    width: 24px;
+    border-radius: 4px;
+    background: var(--primary-color);
+    border: var(--border-width) solid var(--border-color);
+    cursor: pointer;
+    -webkit-appearance: none;
+    margin-top: -9px; /* (Track Height / 2) - (Thumb Height / 2) */
+    box-shadow: 2px 2px 0px var(--border-color);
+    transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+}
+
+input[type=range]:active::-webkit-slider-thumb {
+    box-shadow: 0px 0px 0px transparent;
+    transform: translate(2px, 2px);
+}
+
+input[type=range]::-moz-range-track {
+    width: 100%;
+    height: 12px;
+    cursor: pointer;
+    background: var(--bg-color);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: var(--radius);
+    box-shadow: 2px 2px 0px var(--border-color);
+}
+
+input[type=range]::-moz-range-thumb {
+    height: 24px;
+    width: 24px;
+    border-radius: 4px;
+    background: var(--primary-color);
+    border: var(--border-width) solid var(--border-color);
+    cursor: pointer;
+    box-shadow: 2px 2px 0px var(--border-color);
+    transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+}
+
+input[type=range]:active::-moz-range-thumb {
+    box-shadow: 0px 0px 0px transparent;
+    transform: translate(2px, 2px);
 }
 
 
