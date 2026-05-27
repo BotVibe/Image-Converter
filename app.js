@@ -120,6 +120,80 @@ function initI18n() {
     document.getElementById('langSelect').addEventListener('change', (e) => {
         currentLang = e.target.value;
         applyLanguage();
+        // Dispath change on the select to update the custom UI trigger text if it was updated programmatically elsewhere
+        // No wait, the event listener handles setting the currentLang and applying. The UI updates natively.
+    });
+}
+
+function setupCustomSelects() {
+    const selects = document.querySelectorAll('select');
+    selects.forEach(select => {
+        // Skip if already processed
+        if (select.parentElement.classList.contains('custom-select-wrapper')) return;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'custom-select-wrapper';
+        select.parentNode.insertBefore(wrapper, select);
+        wrapper.appendChild(select);
+
+        const trigger = document.createElement('div');
+        trigger.className = 'custom-select-trigger';
+        // Arrow SVG
+        const arrowSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+
+        const updateTriggerText = () => {
+            const selectedOption = select.options[select.selectedIndex];
+            trigger.innerHTML = `<span>${selectedOption.text}</span>${arrowSvg}`;
+        };
+        updateTriggerText();
+
+        const optionsDiv = document.createElement('div');
+        optionsDiv.className = 'custom-select-options';
+
+        Array.from(select.options).forEach((option, index) => {
+            const optDiv = document.createElement('div');
+            optDiv.className = 'custom-option';
+            if (index === select.selectedIndex) optDiv.classList.add('selected');
+            optDiv.textContent = option.text;
+
+            optDiv.addEventListener('click', () => {
+                select.selectedIndex = index;
+                select.dispatchEvent(new Event('change'));
+
+                // Update selected class
+                Array.from(optionsDiv.children).forEach(c => c.classList.remove('selected'));
+                optDiv.classList.add('selected');
+
+                updateTriggerText();
+                optionsDiv.classList.remove('open');
+                trigger.classList.remove('active');
+            });
+            optionsDiv.appendChild(optDiv);
+        });
+
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = optionsDiv.classList.contains('open');
+            // Close all other selects
+            document.querySelectorAll('.custom-select-options').forEach(el => el.classList.remove('open'));
+            document.querySelectorAll('.custom-select-trigger').forEach(el => el.classList.remove('active'));
+
+            if (!isOpen) {
+                optionsDiv.classList.add('open');
+                trigger.classList.add('active');
+            }
+        });
+
+        wrapper.appendChild(trigger);
+        wrapper.appendChild(optionsDiv);
+
+        // Listen to programmatic changes (e.g., from i18n initialization)
+        select.addEventListener('change', updateTriggerText);
+    });
+
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.custom-select-options').forEach(el => el.classList.remove('open'));
+        document.querySelectorAll('.custom-select-trigger').forEach(el => el.classList.remove('active'));
     });
 }
 
@@ -149,6 +223,10 @@ import encodeWebp, { init as initWebp } from '@jsquash/webp/encode';
 const convertedFiles = []; // To store blobs for ZIP
 const originalFiles = new Map(); // To store original files mapping (id -> file)
 const imageCache = new Map(); // To store decoded images (id -> ImageBitmap/HTMLImageElement)
+
+// Track global maximum dimensions of uploaded images
+let globalMaxWidth = 0;
+let globalMaxHeight = 0;
 
 // Concurrency control for image processing
 const MAX_CONCURRENT = 3;
@@ -203,13 +281,12 @@ function setupFormLimits() {
     const inputHeight = document.getElementById('inputHeight');
 
     const enforceLimits = () => {
-        inputWidth.max = "4096";
-        inputHeight.max = "4096";
-
-        if (!inputWidth.value || parseInt(inputWidth.value) > 4096) {
+        // We no longer auto-set to 4096 if empty, to allow the actual image dimensions to persist
+        // We only enforce the clamp on max 4096.
+        if (inputWidth.value && parseInt(inputWidth.value) > 4096) {
             inputWidth.value = 4096;
         }
-        if (!inputHeight.value || parseInt(inputHeight.value) > 4096) {
+        if (inputHeight.value && parseInt(inputHeight.value) > 4096) {
             inputHeight.value = 4096;
         }
     };
@@ -224,8 +301,6 @@ function setupFormLimits() {
     inputHeight.addEventListener('change', enforceLimits);
     inputWidth.addEventListener('input', clampLimits);
     inputHeight.addEventListener('input', clampLimits);
-
-    enforceLimits();
 }
 
 function setupQualityAndFormat() {
@@ -234,10 +309,50 @@ function setupQualityAndFormat() {
     const inputHeight = document.getElementById('inputHeight');
     const qualitySlider = document.getElementById('qualitySlider');
     const qualityValue = document.getElementById('qualityValue');
+    const sliderContainer = qualitySlider.parentElement;
 
-    // Quality slider text update
+    const updateSliderPercent = () => {
+        const val = qualitySlider.value;
+        const min = qualitySlider.min || 1;
+        const max = qualitySlider.max || 100;
+        const percent = ((val - min) / (max - min)) * 100;
+        qualitySlider.style.setProperty('--slider-percent', `${percent}%`);
+        return percent;
+    };
+    updateSliderPercent();
+
+    // Quality slider text update and animations
     qualitySlider.addEventListener('input', (e) => {
         qualityValue.textContent = e.target.value;
+        const percent = updateSliderPercent();
+
+        // Spawn comic star
+        const star = document.createElement('div');
+        star.className = 'comic-star';
+
+        // Calculate thumb position for star origin
+        const thumbWidth = 28;
+        const offset = (percent / 100) * (qualitySlider.clientWidth - thumbWidth) + (thumbWidth / 2);
+
+        star.style.left = `${offset - 10}px`; // center star
+        star.style.top = '0px';
+
+        // Randomize spill direction
+        const dir = Math.random() > 0.5 ? 1 : -1;
+        const spillX = dir * (10 + Math.random() * 20) + 'px';
+        const spillRot = (dir * (45 + Math.random() * 90)) + 'deg';
+
+        star.style.setProperty('--spill-x', spillX);
+        star.style.setProperty('--spill-rot', spillRot);
+
+        sliderContainer.appendChild(star);
+
+        // Clean up star after animation (3s)
+        setTimeout(() => {
+            if (star.parentNode) {
+                star.parentNode.removeChild(star);
+            }
+        }, 3000);
     });
 
     qualitySlider.addEventListener('change', triggerRecompress);
@@ -309,6 +424,7 @@ function setupAspectRatioToggle() {
 function initUI() {
     checkNativeSupport();
     initI18n();
+    setupCustomSelects();
 
     setupFormLimits();
     setupQualityAndFormat();
@@ -602,6 +718,18 @@ async function processImage(file, existingId = null) {
             }
         }
 
+        // Update global max dimensions if this is a new image
+        let dimsUpdated = false;
+        if (!existingId) {
+            if (img.width > globalMaxWidth) { globalMaxWidth = img.width; dimsUpdated = true; }
+            if (img.height > globalMaxHeight) { globalMaxHeight = img.height; dimsUpdated = true; }
+
+            if (dimsUpdated) {
+                document.getElementById('inputWidth').value = globalMaxWidth;
+                document.getElementById('inputHeight').value = globalMaxHeight;
+            }
+        }
+
         const { width, height } = calculateDimensions(img.width, img.height);
 
         const canvas = document.createElement('canvas');
@@ -770,6 +898,11 @@ window.removeResult = function(id) {
 
     if (convertedFiles.length === 0) {
         document.getElementById('resultsPanel').classList.add('hidden');
+        // Reset global dimensions when all items are removed
+        globalMaxWidth = 0;
+        globalMaxHeight = 0;
+        document.getElementById('inputWidth').value = '';
+        document.getElementById('inputHeight').value = '';
     }
 };
 
@@ -793,6 +926,12 @@ function clearAll() {
     document.getElementById('resultsPanel').classList.add('hidden');
     convertedFiles.length = 0;
     originalFiles.clear();
+
+    // Reset global max dimensions
+    globalMaxWidth = 0;
+    globalMaxHeight = 0;
+    document.getElementById('inputWidth').value = '';
+    document.getElementById('inputHeight').value = '';
 
     // Release all cached images
     for (const cachedImg of imageCache.values()) {
