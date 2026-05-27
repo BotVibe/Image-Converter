@@ -696,7 +696,7 @@ async function processImage(file, existingId = null) {
         // Display normal success state regardless of whether WASM polyfill was used
         statusContainer.innerHTML = `
             <div class="action-buttons-row">
-                <a href="${blobUrl}" download="${escapeHTML(newName)}" class="btn primary" style="text-decoration:none; display:inline-block;">
+                <a href="${blobUrl}" download="${escapeHTML(newName)}" class="btn primary" style="text-decoration:none;">
                     <span data-i18n="download">${i18n[currentLang].download}</span>
                 </a>
                 <button class="btn delete-btn" title="${i18n[currentLang].remove}" onclick="removeResult('${id}')">
