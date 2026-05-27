@@ -12,7 +12,7 @@ A simple, fast, and 100% privacy-compliant image converter built entirely with V
 - **Batch Processing:** Upload multiple images via Drag & Drop or file selection.
 - **Item Management:** Individually remove processed images from the list if you decide not to keep them.
 - **Bulk Download:** Download converted images individually or bundled as a ZIP file.
-- **Modern & Responsive:** Features a clean, squared-off modern dark theme (using `#0b0f19` and `#b6f228`) that adapts perfectly to mobile screens using CSS Grid layouts.
+- **Neobrutalism Design:** Features a modern Neobrutalist dark theme (using `#0b0f19` and `#b6f228` with thick borders, hard shadows, and physical click effects) that adapts perfectly to mobile screens.
 - **100% Privacy:** All processing happens client-side. The required `JSZip` library is hosted locally, ensuring absolutely zero external network requests or tracking. An explanation of how this works is explicitly shown in the UI.
 - **Multilingual UI:** Supports English, German, French, and Italian with auto-detection based on browser language.
 
