@@ -34,7 +34,10 @@ const i18n = {
         upgradeAutoClicker: "Auto-Clicker",
         costText: "Cost:",
         levelText: "Lvl",
-        cpsText: "per sec"
+        cpsText: "per sec",
+        upgradeMultiplierHint: "+1 Click/Click",
+        upgradeAutoHint: "+1 Auto/Sec",
+        megaRepoBtn: "Open Git Repo"
     },
     de: {
         title: "Bild Konverter",
@@ -70,7 +73,10 @@ const i18n = {
         upgradeAutoClicker: "Auto-Klicker",
         costText: "Kosten:",
         levelText: "Lvl",
-        cpsText: "pro Sek"
+        cpsText: "pro Sek",
+        upgradeMultiplierHint: "+1 Klick/Klick",
+        upgradeAutoHint: "+1 Auto/Sek",
+        megaRepoBtn: "Git-Repo öffnen"
     },
     fr: {
         title: "Convertisseur d'Images",
@@ -106,7 +112,10 @@ const i18n = {
         upgradeAutoClicker: "Auto-cliqueur",
         costText: "Coût :",
         levelText: "Niv",
-        cpsText: "par sec"
+        cpsText: "par sec",
+        upgradeMultiplierHint: "+1 Clic/Clic",
+        upgradeAutoHint: "+1 Auto/Sec",
+        megaRepoBtn: "Ouvrir le Dépôt Git"
     },
     it: {
         title: "Convertitore di Immagini",
@@ -142,7 +151,10 @@ const i18n = {
         upgradeAutoClicker: "Auto-clic",
         costText: "Costo:",
         levelText: "Liv",
-        cpsText: "al sec"
+        cpsText: "al sec",
+        upgradeMultiplierHint: "+1 Clic/Clic",
+        upgradeAutoHint: "+1 Auto/Sec",
+        megaRepoBtn: "Apri Repo Git"
     }
 };
 
@@ -535,6 +547,9 @@ function initFooterGame() {
     const autoClickerLevelDisplay = document.getElementById('autoClickerLevel');
     const autoClickerCostDisplay = document.getElementById('autoClickerCostDisplay');
 
+    const megaRepoBtn = document.getElementById('megaRepoBtn');
+    const deniedCross = document.getElementById('deniedCross');
+
     const cpsDisplay = document.getElementById('cpsDisplay');
     const cpsValueDisplay = document.getElementById('cpsValue');
 
@@ -569,6 +584,11 @@ function initFooterGame() {
             upgradeAutoClickerBtn.setAttribute('disabled', 'true');
         }
 
+        // Handle Mega Repo Button
+        if (clicks >= 1000000) {
+            megaRepoBtn.removeAttribute('disabled');
+        }
+
         // Handle CPS display
         if (autoClickers > 0) {
             cpsDisplay.classList.remove('hidden');
@@ -597,15 +617,36 @@ function initFooterGame() {
         }, 1000);
     });
 
-    githubCookie.addEventListener('click', () => {
+    const cookieContainer = githubCookie.parentElement;
+
+    cookieContainer.addEventListener('pointerdown', (e) => {
+        e.preventDefault(); // Prevent Safari from initiating a drag action
+
         clicks += clickPower;
         updateUI();
 
         // Add a wobble effect
-        const container = githubCookie.parentElement;
-        container.classList.remove('wobble');
-        void container.offsetWidth; // trigger reflow to restart animation
-        container.classList.add('wobble');
+        cookieContainer.classList.remove('wobble');
+        void cookieContainer.offsetWidth; // trigger reflow to restart animation
+        cookieContainer.classList.add('wobble');
+    });
+
+    megaRepoBtn.addEventListener('click', () => {
+        if (clicks >= 1000000) {
+            window.open('https://github.com/BotVibe/Image-Converter', '_blank', 'noopener,noreferrer');
+        } else {
+            // Show denied cross animation
+            deniedCross.classList.remove('hidden');
+            deniedCross.classList.remove('show-cross');
+            void deniedCross.offsetWidth; // trigger reflow
+            deniedCross.classList.add('show-cross');
+
+            // Hide it again after animation finishes (0.8s)
+            setTimeout(() => {
+                deniedCross.classList.add('hidden');
+                deniedCross.classList.remove('show-cross');
+            }, 800);
+        }
     });
 
     upgradeMultiplierBtn.addEventListener('click', () => {
