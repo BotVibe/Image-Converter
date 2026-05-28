@@ -24,8 +24,18 @@ const i18n = {
         howItWorksTitle: "How it works & Privacy",
         howItWorksText: "This tool converts your images directly within your browser. By utilizing your device's processing power and modern browser capabilities, no images are ever uploaded to an external server. This guarantees 100% privacy and lightning-fast processing, as your data never leaves your device.",
         githubRepo: "View Source on GitHub",
-        invalidFileType: "Invalid image file type"
-            },
+        invalidFileType: "Invalid image file type",
+        footerGameTitle: "Want to see the source code?",
+        easyWayBtn: "The Easy Way (Boring)",
+        hardWayBtn: "The Hard Way (Cookie Clicker)",
+        skipBtn: "I give up, take me there!",
+        clicksText: "Clicks:",
+        upgradeMultiplier: "Cursor Power",
+        upgradeAutoClicker: "Auto-Clicker",
+        costText: "Cost:",
+        levelText: "Lvl",
+        cpsText: "per sec"
+    },
     de: {
         title: "Bild Konverter",
         settingsTitle: "Einstellungen",
@@ -50,8 +60,18 @@ const i18n = {
         howItWorksTitle: "Funktionsweise & Datenschutz",
         howItWorksText: "Dieses Tool konvertiert Ihre Bilder direkt in Ihrem Browser. Durch die Nutzung der Rechenleistung Ihres Geräts und moderner Browserfunktionen werden niemals Bilder auf einen externen Server hochgeladen. Dies garantiert 100% Datenschutz und eine blitzschnelle Verarbeitung, da Ihre Daten Ihr Gerät nie verlassen.",
         githubRepo: "Quellcode auf GitHub ansehen",
-        invalidFileType: "Ungültiger Bilddateityp"
-            },
+        invalidFileType: "Ungültiger Bilddateityp",
+        footerGameTitle: "Willst du den Quellcode sehen?",
+        easyWayBtn: "Der einfache Weg (Langweilig)",
+        hardWayBtn: "Der harte Weg (Cookie Clicker)",
+        skipBtn: "Ich gebe auf, bring mich hin!",
+        clicksText: "Klicks:",
+        upgradeMultiplier: "Maus-Upgrade",
+        upgradeAutoClicker: "Auto-Klicker",
+        costText: "Kosten:",
+        levelText: "Lvl",
+        cpsText: "pro Sek"
+    },
     fr: {
         title: "Convertisseur d'Images",
         settingsTitle: "Paramètres",
@@ -76,8 +96,18 @@ const i18n = {
         howItWorksTitle: "Comment ça marche et Confidentialité",
         howItWorksText: "Cet outil convertit vos images directement dans votre navigateur. En utilisant la puissance de traitement de votre appareil et les capacités des navigateurs modernes, aucune image n'est jamais téléchargée sur un serveur externe. Cela garantit une confidentialité à 100 % et un traitement ultra-rapide, car vos données ne quittent jamais votre appareil.",
         githubRepo: "Voir le code source sur GitHub",
-        invalidFileType: "Type de fichier image invalide"
-            },
+        invalidFileType: "Type de fichier image invalide",
+        footerGameTitle: "Voulez-vous voir le code source ?",
+        easyWayBtn: "La voie facile (Ennuyeux)",
+        hardWayBtn: "La voie difficile (Cookie Clicker)",
+        skipBtn: "J'abandonne, emmène-moi là-bas !",
+        clicksText: "Clics :",
+        upgradeMultiplier: "Puissance de clic",
+        upgradeAutoClicker: "Auto-cliqueur",
+        costText: "Coût :",
+        levelText: "Niv",
+        cpsText: "par sec"
+    },
     it: {
         title: "Convertitore di Immagini",
         settingsTitle: "Impostazioni",
@@ -102,8 +132,18 @@ const i18n = {
         howItWorksTitle: "Come funziona e Privacy",
         howItWorksText: "Questo strumento converte le tue immagini direttamente nel tuo browser. Utilizzando la potenza di elaborazione del tuo dispositivo e le moderne capacità del browser, nessuna immagine viene mai caricata su un server esterno. Questo garantisce il 100% di privacy e un'elaborazione fulminea, poiché i tuoi dati non lasciano mai il tuo dispositivo.",
         githubRepo: "Visualizza il codice sorgente su GitHub",
-        invalidFileType: "Tipo di file immagine non valido"
-            }
+        invalidFileType: "Tipo di file immagine non valido",
+        footerGameTitle: "Vuoi vedere il codice sorgente?",
+        easyWayBtn: "La via facile (Noioso)",
+        hardWayBtn: "La via difficile (Cookie Clicker)",
+        skipBtn: "Mi arrendo, portami lì!",
+        clicksText: "Clic:",
+        upgradeMultiplier: "Potenza clic",
+        upgradeAutoClicker: "Auto-clic",
+        costText: "Costo:",
+        levelText: "Liv",
+        cpsText: "al sec"
+    }
 };
 
 let currentLang = 'en';
@@ -476,6 +516,115 @@ function initUI() {
     setupDragAndDrop();
     setupActionButtons();
     setupAspectRatioToggle();
+    initFooterGame();
+}
+
+function initFooterGame() {
+    const startHardWayBtn = document.getElementById('startHardWayBtn');
+    const footerDefaultContent = document.getElementById('footerDefaultContent');
+    const footerGameContent = document.getElementById('footerGameContent');
+    const githubCookie = document.getElementById('githubCookie');
+    const clickCountDisplay = document.getElementById('clickCount');
+
+    // Upgrades
+    const upgradeMultiplierBtn = document.getElementById('upgradeMultiplierBtn');
+    const multiplierLevelDisplay = document.getElementById('multiplierLevel');
+    const multiplierCostDisplay = document.getElementById('multiplierCostDisplay');
+
+    const upgradeAutoClickerBtn = document.getElementById('upgradeAutoClickerBtn');
+    const autoClickerLevelDisplay = document.getElementById('autoClickerLevel');
+    const autoClickerCostDisplay = document.getElementById('autoClickerCostDisplay');
+
+    const cpsDisplay = document.getElementById('cpsDisplay');
+    const cpsValueDisplay = document.getElementById('cpsValue');
+
+    let clicks = 0;
+    let clickPower = 1;
+    let autoClickers = 0;
+    let multiplierCost = 50;
+    let autoClickerCost = 100;
+    let gameLoopInterval = null;
+
+    if (!startHardWayBtn || !footerDefaultContent || !footerGameContent || !githubCookie || !clickCountDisplay) return;
+
+    function updateUI() {
+        // We use Math.floor so users don't see ugly decimals
+        clickCountDisplay.textContent = Math.floor(clicks);
+
+        // Handle Multiplier Button
+        multiplierCostDisplay.textContent = Math.floor(multiplierCost);
+        multiplierLevelDisplay.textContent = clickPower;
+        if (clicks >= multiplierCost) {
+            upgradeMultiplierBtn.removeAttribute('disabled');
+        } else {
+            upgradeMultiplierBtn.setAttribute('disabled', 'true');
+        }
+
+        // Handle Auto-Clicker Button
+        autoClickerCostDisplay.textContent = Math.floor(autoClickerCost);
+        autoClickerLevelDisplay.textContent = autoClickers;
+        if (clicks >= autoClickerCost) {
+            upgradeAutoClickerBtn.removeAttribute('disabled');
+        } else {
+            upgradeAutoClickerBtn.setAttribute('disabled', 'true');
+        }
+
+        // Handle CPS display
+        if (autoClickers > 0) {
+            cpsDisplay.classList.remove('hidden');
+            cpsValueDisplay.textContent = autoClickers;
+        }
+    }
+
+    startHardWayBtn.addEventListener('click', () => {
+        footerDefaultContent.classList.add('hidden');
+        footerGameContent.classList.remove('hidden');
+        clicks = 0;
+        clickPower = 1;
+        autoClickers = 0;
+        multiplierCost = 50;
+        autoClickerCost = 100;
+        updateUI();
+
+        if(gameLoopInterval) clearInterval(gameLoopInterval);
+
+        // Run game loop every 1000ms (1 second) for auto clickers
+        gameLoopInterval = setInterval(() => {
+            if (autoClickers > 0) {
+                clicks += autoClickers;
+                updateUI();
+            }
+        }, 1000);
+    });
+
+    githubCookie.addEventListener('click', () => {
+        clicks += clickPower;
+        updateUI();
+
+        // Add a wobble effect
+        const container = githubCookie.parentElement;
+        container.classList.remove('wobble');
+        void container.offsetWidth; // trigger reflow to restart animation
+        container.classList.add('wobble');
+    });
+
+    upgradeMultiplierBtn.addEventListener('click', () => {
+        if (clicks >= multiplierCost) {
+            clicks -= multiplierCost;
+            clickPower++;
+            multiplierCost = Math.floor(multiplierCost * 1.5);
+            updateUI();
+        }
+    });
+
+    upgradeAutoClickerBtn.addEventListener('click', () => {
+        if (clicks >= autoClickerCost) {
+            clicks -= autoClickerCost;
+            autoClickers++;
+            autoClickerCost = Math.floor(autoClickerCost * 1.5);
+            updateUI();
+        }
+    });
 }
 
 async function downloadZip() {
