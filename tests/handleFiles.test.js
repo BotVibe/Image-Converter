@@ -1,9 +1,3 @@
-function assert(condition, message) {
-    if (!condition) {
-        throw new Error(message || "Assertion failed");
-    }
-}
-
 async function testHandleFiles() {
     console.log("🧪 Testing handleFiles...");
 

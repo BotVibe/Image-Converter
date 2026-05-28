@@ -11,6 +11,12 @@ let appJsContent = fs.readFileSync(appJsPath, 'utf8');
 appJsContent = appJsContent.replace(/^import .*$/gm, '// $&');
 appJsContent = appJsContent.replace(/^export .*$/gm, '// $&');
 
+const utilsJsPath = path.join(testsDir, 'utils.js');
+let utilsJsContent = '';
+if (fs.existsSync(utilsJsPath)) {
+    utilsJsContent = fs.readFileSync(utilsJsPath, 'utf8') + '\n';
+}
+
 const testFiles = fs.readdirSync(testsDir).filter(f => f.endsWith('.test.js'));
 let testJsContent = '';
 for (const file of testFiles) {
@@ -105,6 +111,8 @@ const runner = async (document, navigator, window) => {
             }, 0);
         }
     }
+
+    ${utilsJsContent}
 
     ${appJsContent}
 
