@@ -777,7 +777,14 @@ async function processImage(file, existingId = null) {
         canvas.height = height;
         const ctx = canvas.getContext('2d');
 
-        // Draw image directly to preserve transparency
+        // If target format is JPEG, fill with white background first
+        // because JPEG doesn't support transparency and transparent pixels turn black.
+        if (format === 'image/jpeg') {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+        }
+
+        // Draw image directly to preserve transparency (or over the white bg for jpeg)
         ctx.drawImage(img, 0, 0, width, height);
 
         // Generate a low-res preview to prevent UI freezing on huge images
@@ -813,6 +820,10 @@ async function processImage(file, existingId = null) {
             blob = new Blob([buffer], { type: 'image/webp' });
             actualFormat = 'image/webp';
             actualExtension = 'webp';
+        } else if (format === 'image/x-icon') {
+            blob = await generateICO(canvas);
+            actualFormat = 'image/x-icon';
+            actualExtension = 'ico';
         } else {
             // Use Native Browser Encoding
             blob = await new Promise((resolve) => {
@@ -823,6 +834,9 @@ async function processImage(file, existingId = null) {
             if (blob && format !== blob.type) {
                 actualFormat = blob.type;
                 actualExtension = actualFormat.split('/')[1];
+            } else if (format === 'image/jpeg') {
+                // Ensure proper extension for JPEG
+                actualExtension = 'jpg';
             }
         }
 
@@ -885,6 +899,111 @@ async function processImage(file, existingId = null) {
             nextResolve();
         }
     }
+}
+
+async function generateICO(canvas) {
+    return new Promise((resolve) => {
+        const width = canvas.width;
+        const height = canvas.height;
+
+        // ICO requires images to be <= 256x256.
+        // Preserve aspect ratio when scaling down to fit within 256x256.
+        let w = width;
+        let h = height;
+        if (w > 256 || h > 256) {
+            const ratio = Math.min(256 / w, 256 / h);
+            w = Math.round(w * ratio);
+            h = Math.round(h * ratio);
+        }
+
+        // Create a temporary canvas to resize if necessary and ensure correct dimensions
+        const tmpCanvas = document.createElement('canvas');
+        tmpCanvas.width = w;
+        tmpCanvas.height = h;
+        const tmpCtx = tmpCanvas.getContext('2d');
+        tmpCtx.drawImage(canvas, 0, 0, w, h);
+
+        const imgData = tmpCtx.getImageData(0, 0, w, h);
+        const data = imgData.data;
+
+        // ICO Header (6 bytes)
+        // 0-1: Reserved (0)
+        // 2-3: Type (1 for ICO)
+        // 4-5: Number of images (1)
+
+        // Image Directory (16 bytes)
+        // 0: Width (0 means 256)
+        // 1: Height (0 means 256)
+        // 2: Color count (0 for 32-bit)
+        // 3: Reserved (0)
+        // 4-5: Color planes (1)
+        // 6-7: Bit count (32)
+        // 8-11: Size of image data in bytes
+        // 12-15: Offset of image data from beginning of file (22)
+
+        // BITMAPINFOHEADER (40 bytes)
+        // ...
+
+        const bytesPerPixel = 4;
+        const xorMaskSize = w * h * bytesPerPixel;
+        // AND mask size must be padded to a multiple of 4 bytes per row
+        const rowBytes = Math.ceil(w / 32) * 4;
+        const andMaskSize = rowBytes * h;
+        const infoHeaderSize = 40;
+        const imageSize = infoHeaderSize + xorMaskSize + andMaskSize;
+        const fileSize = 6 + 16 + imageSize;
+
+        const buffer = new ArrayBuffer(fileSize);
+        const view = new DataView(buffer);
+        const uint8 = new Uint8Array(buffer);
+
+        // ICO Header
+        view.setUint16(0, 0, true); // Reserved
+        view.setUint16(2, 1, true); // Type: 1
+        view.setUint16(4, 1, true); // Image count
+
+        // Image Directory
+        view.setUint8(6, w === 256 ? 0 : w); // Width
+        view.setUint8(7, h === 256 ? 0 : h); // Height
+        view.setUint8(8, 0); // Colors
+        view.setUint8(9, 0); // Reserved
+        view.setUint16(10, 1, true); // Planes
+        view.setUint16(12, 32, true); // BPP
+        view.setUint32(14, imageSize, true); // Size
+        view.setUint32(18, 22, true); // Offset
+
+        // DIB Header (BITMAPINFOHEADER)
+        view.setUint32(22, infoHeaderSize, true); // Header size
+        view.setInt32(26, w, true); // Width
+        view.setInt32(30, h * 2, true); // Height (x2 for XOR and AND masks)
+        view.setUint16(34, 1, true); // Planes
+        view.setUint16(36, 32, true); // BPP
+        view.setUint32(38, 0, true); // Compression (0 = BI_RGB)
+        view.setUint32(42, xorMaskSize + andMaskSize, true); // Image size
+        view.setInt32(46, 0, true); // X pixels per meter
+        view.setInt32(50, 0, true); // Y pixels per meter
+        view.setUint32(54, 0, true); // Colors used
+        view.setUint32(58, 0, true); // Important colors
+
+        // Pixel Data (XOR Mask) - Bottom-up, BGRA order
+        let offset = 22 + infoHeaderSize;
+        for (let y = h - 1; y >= 0; y--) {
+            for (let x = 0; x < w; x++) {
+                const i = (y * w + x) * 4;
+                view.setUint8(offset++, data[i + 2]); // B
+                view.setUint8(offset++, data[i + 1]); // G
+                view.setUint8(offset++, data[i + 0]); // R
+                view.setUint8(offset++, data[i + 3]); // A
+            }
+        }
+
+        // AND Mask (1 bit per pixel, padded to 32 bits per row) - Bottom-up
+        // Since we are using 32-bit alpha in XOR mask, AND mask can be all 0s (opaque)
+        // to let the 8-bit alpha channel handle transparency.
+        // We initialize it to 0 implicitly when ArrayBuffer is created.
+
+        resolve(new Blob([buffer], { type: 'image/x-icon' }));
+    });
 }
 
 function loadImage(file) {
