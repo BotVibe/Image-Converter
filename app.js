@@ -534,6 +534,15 @@ async function downloadZip() {
 }
 
 
+function readFileAs(blob, method) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = () => reject(new Error(`Failed to read file via ${method}`));
+        reader[method](blob);
+    });
+}
+
 async function validateImageFile(file) {
     if (!file || !(file instanceof File)) return false;
 
@@ -546,12 +555,7 @@ async function validateImageFile(file) {
 
     // SVG validation: read first 512 bytes as text and check for <svg or <?xml
     if (extension === 'svg') {
-        const text = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target.result);
-            reader.onerror = () => reject(new Error("Failed to read SVG file"));
-            reader.readAsText(file.slice(0, 512));
-        }).catch(() => null);
+        const text = await readFileAs(file.slice(0, 512), 'readAsText').catch(() => null);
 
         if (!text) return false;
 
@@ -560,12 +564,9 @@ async function validateImageFile(file) {
     }
 
     // Binary file validation using magic bytes
-    const buffer = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(new Uint8Array(e.target.result));
-        reader.onerror = () => reject(new Error("Failed to read file"));
-        reader.readAsArrayBuffer(file.slice(0, 16));
-    }).catch(() => null);
+    const buffer = await readFileAs(file.slice(0, 16), 'readAsArrayBuffer')
+        .then(res => new Uint8Array(res))
+        .catch(() => null);
 
     if (!buffer || buffer.length < 4) return false;
 
