@@ -109,6 +109,27 @@ function test() {
     res = calculateDimensions(800, 600);
     assert(res.width === 800 && res.height === 600, "Should ignore 0 target inputs as they evaluate to falsy");
 
+    // Case 15: Extreme dimensions without inputs (DoS vulnerability fix check)
+    keepAspect.checked = false;
+    inputWidth.value = "";
+    inputHeight.value = "";
+    res = calculateDimensions(50000, 50000);
+    assert(res.width === 4096 && res.height === 4096, "Should clamp extremely large dimensions to 4096x4096 to prevent memory exhaustion");
+
+    // Case 16: Extreme non-square dimensions without inputs (DoS vulnerability fix check)
+    keepAspect.checked = true;
+    inputWidth.value = "";
+    inputHeight.value = "";
+    res = calculateDimensions(8192, 4096);
+    assert(res.width === 4096 && res.height === 2048, "Should scale down extremely large non-square image to fit within 4096 while preserving aspect ratio");
+
+    // Case 17: Extreme dimensions with inputs (DoS vulnerability fix check)
+    keepAspect.checked = false;
+    inputWidth.value = "50000";
+    inputHeight.value = "50000";
+    res = calculateDimensions(1000, 1000);
+    assert(res.width === 4096 && res.height === 4096, "Should clamp extremely large input target dimensions to 4096x4096");
+
     console.log("✅ All calculateDimensions tests passed!");
 }
 

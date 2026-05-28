@@ -665,6 +665,14 @@ function calculateDimensions(origWidth, origHeight) {
         if (targetHeight) newHeight = targetHeight;
     }
 
+    // Hardcap dimensions to 4096 to prevent memory exhaustion (DoS)
+    const MAX_DIMENSION = 4096;
+    if (newWidth > MAX_DIMENSION || newHeight > MAX_DIMENSION) {
+        const clampRatio = Math.min(MAX_DIMENSION / newWidth, MAX_DIMENSION / newHeight);
+        newWidth = newWidth * clampRatio;
+        newHeight = newHeight * clampRatio;
+    }
+
     return { width: Math.round(newWidth), height: Math.round(newHeight) };
 }
 
