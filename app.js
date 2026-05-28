@@ -604,12 +604,25 @@ async function handleFiles(files) {
     const resultsPanel = document.getElementById('resultsPanel');
     resultsPanel.classList.remove('hidden');
 
-    for (const file of files) {
-        const isValid = await validateImageFile(file);
-        if (isValid) {
-            processImage(file);
-        } else {
-            handleInvalidFile(file);
+    // Process files in batches to limit concurrency
+    const BATCH_SIZE = 10;
+    const filesArray = Array.from(files);
+
+    for (let i = 0; i < filesArray.length; i += BATCH_SIZE) {
+        const batch = filesArray.slice(i, i + BATCH_SIZE);
+
+        // Validate concurrently while maintaining order
+        const validationResults = await Promise.all(batch.map(file => validateImageFile(file)));
+
+        for (let j = 0; j < batch.length; j++) {
+            const file = batch[j];
+            const isValid = validationResults[j];
+
+            if (isValid) {
+                processImage(file);
+            } else {
+                handleInvalidFile(file);
+            }
         }
     }
 }
