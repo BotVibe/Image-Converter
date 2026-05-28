@@ -747,15 +747,28 @@ async function processImage(file, existingId = null) {
         if (imageCache.has(id)) {
             img = imageCache.get(id);
         } else {
-            const rawImg = await loadImage(file);
-            // Use ImageBitmap for better performance if supported
-            if (window.createImageBitmap) {
-                img = await createImageBitmap(rawImg);
-                imageCache.set(id, img);
+            // SVGs cannot be decoded directly from a File object by createImageBitmap in some browsers.
+            if (file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')) {
+                const rawImg = await loadImage(file);
+                if (window.createImageBitmap) {
+                    img = await createImageBitmap(rawImg);
+                } else {
+                    img = rawImg;
+                }
             } else {
-                img = rawImg;
-                imageCache.set(id, img);
+                if (window.createImageBitmap) {
+                    try {
+                        img = await createImageBitmap(file);
+                    } catch (e) {
+                        // Fallback in case createImageBitmap fails directly on the file
+                        const rawImg = await loadImage(file);
+                        img = await createImageBitmap(rawImg);
+                    }
+                } else {
+                    img = await loadImage(file);
+                }
             }
+            imageCache.set(id, img);
         }
 
         // Update global max dimensions if this is a new image
