@@ -715,6 +715,7 @@ input[type=range]:active::-moz-range-thumb {
 .cookie-container {
     cursor: pointer;
     user-select: none;
+    -webkit-user-drag: none;
     transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     display: inline-block;
     padding: 1rem;
@@ -723,6 +724,10 @@ input[type=range]:active::-moz-range-thumb {
     border: var(--border-width) solid var(--border-color);
     box-shadow: 8px 8px 0 var(--border-color);
     color: var(--border-color);
+}
+
+#githubCookie {
+    pointer-events: none; /* Let the container handle the clicks */
 }
 
 .cookie-container:active {
@@ -804,6 +809,77 @@ input[type=range]:active::-moz-range-thumb {
 .upgrade-cost {
     font-size: 0.8rem;
     font-weight: 600;
+}
+
+.upgrade-hint {
+    font-size: 0.75rem;
+    font-style: italic;
+    opacity: 0.8;
+}
+
+.mega-btn-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.mega-fancy-btn {
+    background: repeating-linear-gradient(
+        45deg,
+        #fbbf24,
+        #fbbf24 10px,
+        #f59e0b 10px,
+        #f59e0b 20px
+    );
+    color: var(--border-color);
+    font-size: 1.2rem;
+    font-weight: 800;
+    padding: 1rem 2rem;
+    border-width: 4px;
+    animation: pulseMega 2s infinite ease-in-out;
+    text-transform: uppercase;
+}
+
+@keyframes pulseMega {
+    0% { transform: scale(1); box-shadow: 4px 4px 0 var(--border-color); }
+    50% { transform: scale(1.05); box-shadow: 8px 8px 0 var(--border-color); }
+    100% { transform: scale(1); box-shadow: 4px 4px 0 var(--border-color); }
+}
+
+.mega-cost {
+    font-size: 0.8rem;
+    font-weight: 800;
+    margin-top: 0.5rem;
+    color: #fff;
+    text-shadow: 1px 1px 0 var(--border-color);
+}
+
+.denied-cross {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(1);
+    font-size: 4rem;
+    color: var(--warning-color);
+    text-shadow:
+        -2px -2px 0 #fff,
+         2px -2px 0 #fff,
+        -2px  2px 0 #fff,
+         2px  2px 0 #fff,
+         6px  6px 0 var(--border-color); /* Brutal shadow */
+    z-index: 10;
+    pointer-events: none;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.denied-cross.show-cross {
+    animation: popCross 0.8s forwards ease-out;
+}
+
+@keyframes popCross {
+    0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+    20% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+    80% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
 }
 
 .footer-game-actions .skip-btn {
