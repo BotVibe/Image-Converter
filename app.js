@@ -421,7 +421,47 @@ function setupAspectRatioToggle() {
     updateDimensionLabels();
 }
 
+function initTheme() {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const root = document.documentElement;
+    const themeToggle = document.getElementById('themeToggle');
+    const themeText = document.getElementById('themeText');
+    const sunIcon = document.getElementById('sunIcon');
+    const moonIcon = document.getElementById('moonIcon');
+
+    // Default is light unless user strictly prefers dark
+    if (!prefersDark) {
+        root.setAttribute('data-theme', 'light');
+    }
+
+    const updateToggleUI = () => {
+        const isLight = root.getAttribute('data-theme') === 'light';
+        if (isLight) {
+            themeText.textContent = 'LIGHT MODE';
+            sunIcon.style.display = 'block';
+            moonIcon.style.display = 'none';
+        } else {
+            themeText.textContent = 'DARK MODE';
+            sunIcon.style.display = 'none';
+            moonIcon.style.display = 'block';
+        }
+    };
+
+    updateToggleUI();
+
+    themeToggle.addEventListener('click', () => {
+        const isLight = root.getAttribute('data-theme') === 'light';
+        if (isLight) {
+            root.removeAttribute('data-theme'); // default to dark
+        } else {
+            root.setAttribute('data-theme', 'light');
+        }
+        updateToggleUI();
+    });
+}
+
 function initUI() {
+    initTheme();
     checkNativeSupport();
     initI18n();
     setupCustomSelects();
