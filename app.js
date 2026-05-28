@@ -491,14 +491,21 @@ async function downloadZip() {
             // Handle filename collisions
             let finalName = safeName;
             let counter = 1;
+
+            const nameParts = safeName.split('.');
+            let base, ext;
+            if (nameParts.length > 1) {
+                ext = nameParts.pop();
+                base = nameParts.join('.');
+            } else {
+                base = safeName;
+            }
+
             while (usedNames.has(finalName)) {
-                const nameParts = safeName.split('.');
-                if (nameParts.length > 1) {
-                    const ext = nameParts.pop();
-                    const base = nameParts.join('.');
+                if (ext !== undefined) {
                     finalName = `${base} (${counter}).${ext}`;
                 } else {
-                    finalName = `${safeName} (${counter})`;
+                    finalName = `${base} (${counter})`;
                 }
                 counter++;
             }
