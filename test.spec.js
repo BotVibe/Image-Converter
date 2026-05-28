@@ -9,7 +9,7 @@ test('App initializes and format selector works', async ({ page }) => {
 
   // Test format dropdown changes limit enforcing
   const formatSelect = page.locator('#formatSelect');
-  await formatSelect.selectOption('image/png'); // Using 'image/png' since jpeg is not an option
+  await formatSelect.selectOption({ value: 'image/png' }, { force: true });
 
   const inputWidth = page.locator('#inputWidth');
   await inputWidth.fill('5000');
