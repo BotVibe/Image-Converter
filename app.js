@@ -749,6 +749,49 @@ function createResultItem(id, originalFile) {
     return li;
 }
 
+async function encodeImage(canvas, ctx, width, height, format, extension, quality) {
+    let blob;
+    let actualFormat = format;
+    let actualExtension = extension;
+
+    // If format is WebP or AVIF AND browser lacks native support, use WASM Encoder!
+    if (format === 'image/avif' && !nativeSupport['image/avif']) {
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const qualityValue = Math.round(quality * 100); // 1 to 100
+        const buffer = await encodeAvif(imageData, { quality: qualityValue });
+        blob = new Blob([buffer], { type: 'image/avif' });
+        actualFormat = 'image/avif';
+        actualExtension = 'avif';
+    } else if (format === 'image/webp' && !nativeSupport['image/webp']) {
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const qualityValue = quality * 100;
+        const buffer = await encodeWebp(imageData, { quality: qualityValue });
+        blob = new Blob([buffer], { type: 'image/webp' });
+        actualFormat = 'image/webp';
+        actualExtension = 'webp';
+    } else if (format === 'image/x-icon') {
+        blob = await generateICO(canvas);
+        actualFormat = 'image/x-icon';
+        actualExtension = 'ico';
+    } else {
+        // Use Native Browser Encoding
+        blob = await new Promise((resolve) => {
+            canvas.toBlob(resolve, format, quality);
+        });
+
+        // Safety check against silent fail -> fallback to PNG (shouldnt happen anymore but just in case)
+        if (blob && format !== blob.type) {
+            actualFormat = blob.type;
+            actualExtension = actualFormat.split('/')[1];
+        } else if (format === 'image/jpeg') {
+            // Ensure proper extension for JPEG
+            actualExtension = 'jpg';
+        }
+    }
+
+    return { blob, actualFormat, actualExtension };
+}
+
 async function processImage(file, existingId = null) {
     const id = existingId || (Date.now() + Math.random().toString(36).substr(2, 9));
 
@@ -845,46 +888,7 @@ async function processImage(file, existingId = null) {
         const previewUrl = previewCanvas.toDataURL('image/png', 0.5);
         document.getElementById(`preview-${id}`).src = previewUrl;
 
-        let blob;
-        let actualFormat = format;
-        let actualExtension = extension;
-
-        // If format is WebP or AVIF AND browser lacks native support, use WASM Encoder!
-        if (format === 'image/avif' && !nativeSupport['image/avif']) {
-
-            const imageData = ctx.getImageData(0, 0, width, height);
-            const qualityValue = Math.round(quality * 100); // 1 to 100
-            const buffer = await encodeAvif(imageData, { quality: qualityValue });
-            blob = new Blob([buffer], { type: 'image/avif' });
-            actualFormat = 'image/avif';
-            actualExtension = 'avif';
-        } else if (format === 'image/webp' && !nativeSupport['image/webp']) {
-
-            const imageData = ctx.getImageData(0, 0, width, height);
-            const qualityValue = quality * 100;
-            const buffer = await encodeWebp(imageData, { quality: qualityValue });
-            blob = new Blob([buffer], { type: 'image/webp' });
-            actualFormat = 'image/webp';
-            actualExtension = 'webp';
-        } else if (format === 'image/x-icon') {
-            blob = await generateICO(canvas);
-            actualFormat = 'image/x-icon';
-            actualExtension = 'ico';
-        } else {
-            // Use Native Browser Encoding
-            blob = await new Promise((resolve) => {
-                canvas.toBlob(resolve, format, quality);
-            });
-
-            // Safety check against silent fail -> fallback to PNG (shouldnt happen anymore but just in case)
-            if (blob && format !== blob.type) {
-                actualFormat = blob.type;
-                actualExtension = actualFormat.split('/')[1];
-            } else if (format === 'image/jpeg') {
-                // Ensure proper extension for JPEG
-                actualExtension = 'jpg';
-            }
-        }
+        const { blob, actualFormat, actualExtension } = await encodeImage(canvas, ctx, width, height, format, extension, quality);
 
         if (!blob) {
             showError(id);
@@ -1149,4 +1153,4 @@ document.addEventListener('DOMContentLoaded', () => {
     initUI();
 });
 
-export { calculateDimensions };
+export { calculateDimensions, encodeImage };
