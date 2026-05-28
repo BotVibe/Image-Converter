@@ -228,6 +228,9 @@ const imageCache = new Map(); // To store decoded images (id -> ImageBitmap/HTML
 let globalMaxWidth = 0;
 let globalMaxHeight = 0;
 
+// Memory / Hardcap constants
+const MAX_IMAGE_DIMENSION = 4096;
+
 // Concurrency control for image processing
 const MAX_CONCURRENT = 3;
 let activeProcessing = 0;
@@ -283,19 +286,19 @@ function setupFormLimits() {
     const inputHeight = document.getElementById('inputHeight');
 
     const enforceLimits = () => {
-        // We no longer auto-set to 4096 if empty, to allow the actual image dimensions to persist
-        // We only enforce the clamp on max 4096.
-        if (inputWidth.value && parseInt(inputWidth.value) > 4096) {
-            inputWidth.value = 4096;
+        // We no longer auto-set to MAX_IMAGE_DIMENSION if empty, to allow the actual image dimensions to persist
+        // We only enforce the clamp on max MAX_IMAGE_DIMENSION.
+        if (inputWidth.value && parseInt(inputWidth.value) > MAX_IMAGE_DIMENSION) {
+            inputWidth.value = MAX_IMAGE_DIMENSION;
         }
-        if (inputHeight.value && parseInt(inputHeight.value) > 4096) {
-            inputHeight.value = 4096;
+        if (inputHeight.value && parseInt(inputHeight.value) > MAX_IMAGE_DIMENSION) {
+            inputHeight.value = MAX_IMAGE_DIMENSION;
         }
     };
 
     const clampLimits = () => {
-        if (inputWidth.value && parseInt(inputWidth.value) > 4096) inputWidth.value = 4096;
-        if (inputHeight.value && parseInt(inputHeight.value) > 4096) inputHeight.value = 4096;
+        if (inputWidth.value && parseInt(inputWidth.value) > MAX_IMAGE_DIMENSION) inputWidth.value = MAX_IMAGE_DIMENSION;
+        if (inputHeight.value && parseInt(inputHeight.value) > MAX_IMAGE_DIMENSION) inputHeight.value = MAX_IMAGE_DIMENSION;
     };
 
     formatSelect.addEventListener('change', enforceLimits);
@@ -681,10 +684,9 @@ function calculateDimensions(origWidth, origHeight) {
         if (targetHeight) newHeight = targetHeight;
     }
 
-    // Hardcap dimensions to 4096 to prevent memory exhaustion (DoS)
-    const MAX_DIMENSION = 4096;
-    if (newWidth > MAX_DIMENSION || newHeight > MAX_DIMENSION) {
-        const clampRatio = Math.min(MAX_DIMENSION / newWidth, MAX_DIMENSION / newHeight);
+    // Hardcap dimensions to prevent memory exhaustion (DoS)
+    if (newWidth > MAX_IMAGE_DIMENSION || newHeight > MAX_IMAGE_DIMENSION) {
+        const clampRatio = Math.min(MAX_IMAGE_DIMENSION / newWidth, MAX_IMAGE_DIMENSION / newHeight);
         newWidth = newWidth * clampRatio;
         newHeight = newHeight * clampRatio;
     }
