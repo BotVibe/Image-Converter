@@ -712,6 +712,66 @@ input[type=range]:active::-moz-range-thumb {
     gap: 2rem;
 }
 
+.cookie-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.click-me-arrow {
+    position: absolute;
+    top: -60px;
+    right: -70px;
+    width: 80px;
+    height: 80px;
+    color: #fff;
+    filter: drop-shadow(3px 3px 0 var(--border-color));
+    z-index: 10;
+    pointer-events: none;
+    /* First spin in, then bounce continuously */
+    animation:
+        spiralIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards,
+        bounceArrow 1s 0.8s infinite alternate ease-in-out;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.click-me-arrow.fade-out {
+    opacity: 0 !important;
+    transform: translateY(-20px) scale(0.8) !important;
+    animation: none !important; /* Stop the bounce animation so it can fade out smoothly */
+}
+
+@keyframes spiralIn {
+    0% { transform: translateY(-50px) rotate(180deg) scale(0); opacity: 0; }
+    100% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+}
+
+@keyframes bounceArrow {
+    0% { transform: translateY(0) rotate(0deg); }
+    100% { transform: translateY(10px) rotate(-5deg); }
+}
+
+.floating-crit {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--warning-color);
+    font-size: 1.5rem;
+    font-weight: 900;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    text-shadow: 2px 2px 0 var(--border-color), -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
+    pointer-events: none;
+    z-index: 20;
+    animation: floatUp 1s cubic-bezier(0.215, 0.61, 0.355, 1) forwards;
+}
+
+@keyframes floatUp {
+    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+    20% { transform: translate(-50%, -80%) scale(1.2); opacity: 1; }
+    80% { transform: translate(-50%, -150%) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -180%) scale(0.8); opacity: 0; }
+}
+
 .cookie-container {
     cursor: pointer;
     user-select: none;
