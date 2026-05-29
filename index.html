@@ -146,15 +146,37 @@
         </div>
 
         <div id="footerGameContent" class="hidden">
-            <div class="cookie-container">
-                <svg id="githubCookie" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="80" height="80" fill="currentColor">
-                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+            <div class="cookie-wrapper" id="cookieWrapper">
+                <!-- Neobrutalist hand-drawn spiral arrow -->
+                <svg id="clickMeArrow" class="click-me-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M 20 20 C 60 10, 90 40, 70 80 C 50 110, 10 90, 20 50 C 30 10, 80 10, 85 45 C 90 70, 60 90, 45 80" />
+                    <polyline points="30,70 45,80 55,65" />
                 </svg>
+
+                <div class="cookie-container">
+                    <svg id="githubCookie" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="80" height="80" fill="currentColor">
+                        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                    </svg>
+                </div>
             </div>
 
             <p class="clicks-counter"><span data-i18n="clicksText">Clicks:</span> <span id="clickCount">0</span> <span id="cpsDisplay" class="cps-display hidden">(<span id="cpsValue">0</span> <span data-i18n="cpsText">per sec</span>)</span></p>
 
             <div class="game-upgrades">
+                <button id="upgradeCritChanceBtn" class="upgrade-btn" disabled>
+                    <span class="upgrade-name" data-i18n="critChanceTitle">Crit Chance</span> <span class="upgrade-level">(<span id="critChanceLevel">5</span>%)</span>
+                    <br>
+                    <span class="upgrade-cost"><span data-i18n="costText">Cost:</span> <span id="critChanceCostDisplay">100</span></span>
+                    <br>
+                    <span class="upgrade-hint" data-i18n="critChanceHint">+1% Chance</span>
+                </button>
+                <button id="upgradeCritDamageBtn" class="upgrade-btn" disabled>
+                    <span class="upgrade-name" data-i18n="critDamageTitle">Crit Damage</span> <span class="upgrade-level">(<span data-i18n="levelText">Lvl</span> <span id="critDamageLevel">0</span>)</span>
+                    <br>
+                    <span class="upgrade-cost"><span data-i18n="costText">Cost:</span> <span id="critDamageCostDisplay">150</span></span>
+                    <br>
+                    <span class="upgrade-hint" data-i18n="critDamageHint">+1 Dmg</span>
+                </button>
                 <button id="upgradeMultiplierBtn" class="upgrade-btn" disabled>
                     <span class="upgrade-name" data-i18n="upgradeMultiplier">Cursor Power</span> <span class="upgrade-level">(<span data-i18n="levelText">Lvl</span> <span id="multiplierLevel">1</span>)</span>
                     <br>
@@ -175,6 +197,20 @@
                     <span class="upgrade-cost"><span data-i18n="costText">Cost:</span> <span id="autoClickerCostDisplay">100</span></span>
                     <br>
                     <span class="upgrade-hint" data-i18n="upgradeAutoHint">+1 Auto/Sec</span>
+                </button>
+                <button id="upgradeAutoCritChanceBtn" class="upgrade-btn" disabled>
+                    <span class="upgrade-name" data-i18n="autoCritChanceTitle">Auto Crit Chance</span> <span class="upgrade-level">(<span id="autoCritChanceLevel">5</span>%)</span>
+                    <br>
+                    <span class="upgrade-cost"><span data-i18n="costText">Cost:</span> <span id="autoCritChanceCostDisplay">200</span></span>
+                    <br>
+                    <span class="upgrade-hint" data-i18n="critChanceHint">+1% Chance</span>
+                </button>
+                <button id="upgradeAutoCritDamageBtn" class="upgrade-btn" disabled>
+                    <span class="upgrade-name" data-i18n="autoCritDamageTitle">Auto Crit Damage</span> <span class="upgrade-level">(<span data-i18n="levelText">Lvl</span> <span id="autoCritDamageLevel">0</span>)</span>
+                    <br>
+                    <span class="upgrade-cost"><span data-i18n="costText">Cost:</span> <span id="autoCritDamageCostDisplay">250</span></span>
+                    <br>
+                    <span class="upgrade-hint" data-i18n="critDamageHint">+1 Dmg</span>
                 </button>
             </div>
 

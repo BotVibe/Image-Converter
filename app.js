@@ -37,7 +37,14 @@ const i18n = {
         cpsText: "per sec",
         upgradeMultiplierHint: "+1 Click/Click",
         upgradeAutoHint: "+1 Auto/Sec",
-        megaRepoBtn: "Open Git Repo"
+        megaRepoBtn: "Open Git Repo",
+        critChanceTitle: "Crit Chance",
+        critDamageTitle: "Crit Damage",
+        autoCritChanceTitle: "Auto Crit Chance",
+        autoCritDamageTitle: "Auto Crit Damage",
+        critChanceHint: "+1% Chance",
+        critDamageHint: "+1 Dmg",
+        maxLevel: "Max"
     },
     de: {
         title: "Bild Konverter",
@@ -76,7 +83,14 @@ const i18n = {
         cpsText: "pro Sek",
         upgradeMultiplierHint: "+1 Klick/Klick",
         upgradeAutoHint: "+1 Auto/Sek",
-        megaRepoBtn: "Git-Repo öffnen"
+        megaRepoBtn: "Git-Repo öffnen",
+        critChanceTitle: "Krit-Chance",
+        critDamageTitle: "Krit-Schaden",
+        autoCritChanceTitle: "Auto Krit-Chance",
+        autoCritDamageTitle: "Auto Krit-Schaden",
+        critChanceHint: "+1% Chance",
+        critDamageHint: "+1 Schaden",
+        maxLevel: "Max"
     },
     fr: {
         title: "Convertisseur d'Images",
@@ -115,7 +129,14 @@ const i18n = {
         cpsText: "par sec",
         upgradeMultiplierHint: "+1 Clic/Clic",
         upgradeAutoHint: "+1 Auto/Sec",
-        megaRepoBtn: "Ouvrir le Dépôt Git"
+        megaRepoBtn: "Ouvrir le Dépôt Git",
+        critChanceTitle: "Chance Crit",
+        critDamageTitle: "Dégâts Crit",
+        autoCritChanceTitle: "Auto Chance Crit",
+        autoCritDamageTitle: "Auto Dégâts Crit",
+        critChanceHint: "+1% Chance",
+        critDamageHint: "+1 Dégât",
+        maxLevel: "Max"
     },
     it: {
         title: "Convertitore di Immagini",
@@ -154,7 +175,14 @@ const i18n = {
         cpsText: "al sec",
         upgradeMultiplierHint: "+1 Clic/Clic",
         upgradeAutoHint: "+1 Auto/Sec",
-        megaRepoBtn: "Apri Repo Git"
+        megaRepoBtn: "Apri Repo Git",
+        critChanceTitle: "Probabilità Crit",
+        critDamageTitle: "Danno Crit",
+        autoCritChanceTitle: "Auto Probabilità Crit",
+        autoCritDamageTitle: "Auto Danno Crit",
+        critChanceHint: "+1% Prob",
+        critDamageHint: "+1 Danno",
+        maxLevel: "Max"
     }
 };
 
@@ -547,20 +575,76 @@ function initFooterGame() {
     const autoClickerLevelDisplay = document.getElementById('autoClickerLevel');
     const autoClickerCostDisplay = document.getElementById('autoClickerCostDisplay');
 
+    const upgradeCritChanceBtn = document.getElementById('upgradeCritChanceBtn');
+    const critChanceLevelDisplay = document.getElementById('critChanceLevel');
+    const critChanceCostDisplay = document.getElementById('critChanceCostDisplay');
+
+    const upgradeCritDamageBtn = document.getElementById('upgradeCritDamageBtn');
+    const critDamageLevelDisplay = document.getElementById('critDamageLevel');
+    const critDamageCostDisplay = document.getElementById('critDamageCostDisplay');
+
+    const upgradeAutoCritChanceBtn = document.getElementById('upgradeAutoCritChanceBtn');
+    const autoCritChanceLevelDisplay = document.getElementById('autoCritChanceLevel');
+    const autoCritChanceCostDisplay = document.getElementById('autoCritChanceCostDisplay');
+
+    const upgradeAutoCritDamageBtn = document.getElementById('upgradeAutoCritDamageBtn');
+    const autoCritDamageLevelDisplay = document.getElementById('autoCritDamageLevel');
+    const autoCritDamageCostDisplay = document.getElementById('autoCritDamageCostDisplay');
+
     const megaRepoBtn = document.getElementById('megaRepoBtn');
     const deniedCross = document.getElementById('deniedCross');
 
     const cpsDisplay = document.getElementById('cpsDisplay');
     const cpsValueDisplay = document.getElementById('cpsValue');
+    const cookieWrapper = document.getElementById('cookieWrapper');
+    const clickMeArrow = document.getElementById('clickMeArrow');
 
     let clicks = 0;
     let clickPower = 1;
     let autoClickers = 0;
     let multiplierCost = 50;
     let autoClickerCost = 100;
+
+    let critChance = 5; // 5%
+    let critDamage = 5;
+    let critChanceCost = 100;
+    let critDamageCost = 150;
+    let critDamageLevel = 0;
+
+    let autoCritChance = 5; // 5%
+    let autoCritDamage = 5;
+    let autoCritChanceCost = 200;
+    let autoCritDamageCost = 250;
+    let autoCritDamageLevel = 0;
+
+    let totalLifetimeClicks = 0; // used to hide the arrow
     let gameLoopInterval = null;
 
     if (!startHardWayBtn || !footerDefaultContent || !footerGameContent || !githubCookie || !clickCountDisplay) return;
+
+    function spawnCritText(isAuto) {
+        if (!cookieWrapper) return;
+        const critEl = document.createElement('div');
+        critEl.className = 'floating-crit';
+        critEl.textContent = 'CRIT!';
+        // Slightly random position around the center
+        const offsetX = (Math.random() - 0.5) * 40;
+        const offsetY = (Math.random() - 0.5) * 40;
+        critEl.style.marginLeft = `${offsetX}px`;
+        critEl.style.marginTop = `${offsetY}px`;
+
+        // Auto crits can be slightly smaller
+        if (isAuto) {
+            critEl.style.fontSize = '1.2rem';
+        }
+
+        cookieWrapper.appendChild(critEl);
+
+        // Remove element after animation finishes
+        setTimeout(() => {
+            critEl.remove();
+        }, 1000);
+    }
 
     function updateUI() {
         // We use Math.floor so users don't see ugly decimals
@@ -584,6 +668,42 @@ function initFooterGame() {
             upgradeAutoClickerBtn.setAttribute('disabled', 'true');
         }
 
+        // Handle Crit Chance Button
+        if (critChance >= 100) {
+            critChanceCostDisplay.textContent = i18n[currentLang].maxLevel;
+            critChanceLevelDisplay.textContent = 100;
+            upgradeCritChanceBtn.setAttribute('disabled', 'true');
+        } else {
+            critChanceCostDisplay.textContent = Math.floor(critChanceCost);
+            critChanceLevelDisplay.textContent = critChance;
+            if (clicks >= critChanceCost) upgradeCritChanceBtn.removeAttribute('disabled');
+            else upgradeCritChanceBtn.setAttribute('disabled', 'true');
+        }
+
+        // Handle Crit Damage Button
+        critDamageCostDisplay.textContent = Math.floor(critDamageCost);
+        critDamageLevelDisplay.textContent = critDamageLevel;
+        if (clicks >= critDamageCost) upgradeCritDamageBtn.removeAttribute('disabled');
+        else upgradeCritDamageBtn.setAttribute('disabled', 'true');
+
+        // Handle Auto Crit Chance Button
+        if (autoCritChance >= 100) {
+            autoCritChanceCostDisplay.textContent = i18n[currentLang].maxLevel;
+            autoCritChanceLevelDisplay.textContent = 100;
+            upgradeAutoCritChanceBtn.setAttribute('disabled', 'true');
+        } else {
+            autoCritChanceCostDisplay.textContent = Math.floor(autoCritChanceCost);
+            autoCritChanceLevelDisplay.textContent = autoCritChance;
+            if (clicks >= autoCritChanceCost) upgradeAutoCritChanceBtn.removeAttribute('disabled');
+            else upgradeAutoCritChanceBtn.setAttribute('disabled', 'true');
+        }
+
+        // Handle Auto Crit Damage Button
+        autoCritDamageCostDisplay.textContent = Math.floor(autoCritDamageCost);
+        autoCritDamageLevelDisplay.textContent = autoCritDamageLevel;
+        if (clicks >= autoCritDamageCost) upgradeAutoCritDamageBtn.removeAttribute('disabled');
+        else upgradeAutoCritDamageBtn.setAttribute('disabled', 'true');
+
         // Handle Mega Repo Button
         if (clicks >= 1000000) {
             megaRepoBtn.removeAttribute('disabled');
@@ -604,6 +724,25 @@ function initFooterGame() {
         autoClickers = 0;
         multiplierCost = 50;
         autoClickerCost = 100;
+
+        critChance = 5;
+        critDamage = 5;
+        critChanceCost = 100;
+        critDamageCost = 150;
+        critDamageLevel = 0;
+
+        autoCritChance = 5;
+        autoCritDamage = 5;
+        autoCritChanceCost = 200;
+        autoCritDamageCost = 250;
+        autoCritDamageLevel = 0;
+
+        totalLifetimeClicks = 0;
+
+        if (clickMeArrow) {
+            clickMeArrow.classList.remove('fade-out');
+        }
+
         updateUI();
 
         if(gameLoopInterval) clearInterval(gameLoopInterval);
@@ -611,7 +750,24 @@ function initFooterGame() {
         // Run game loop every 1000ms (1 second) for auto clickers
         gameLoopInterval = setInterval(() => {
             if (autoClickers > 0) {
-                clicks += autoClickers;
+                let autoClicksAdded = 0;
+                let critsOccurred = false;
+
+                // Roll for each individual auto-clicker
+                for (let i = 0; i < autoClickers; i++) {
+                    const roll = Math.random() * 100;
+                    if (roll < autoCritChance) {
+                        autoClicksAdded += (1 + autoCritDamage);
+                        critsOccurred = true;
+                    } else {
+                        autoClicksAdded += 1;
+                    }
+                }
+
+                clicks += autoClicksAdded;
+                if (critsOccurred) {
+                    spawnCritText(true);
+                }
                 updateUI();
             }
         }, 1000);
@@ -622,7 +778,19 @@ function initFooterGame() {
     cookieContainer.addEventListener('pointerdown', (e) => {
         e.preventDefault(); // Prevent Safari from initiating a drag action
 
-        clicks += clickPower;
+        totalLifetimeClicks++;
+        if (totalLifetimeClicks === 5 && clickMeArrow) {
+            clickMeArrow.classList.add('fade-out');
+        }
+
+        const roll = Math.random() * 100;
+        if (roll < critChance) {
+            clicks += (clickPower + critDamage);
+            spawnCritText(false);
+        } else {
+            clicks += clickPower;
+        }
+
         updateUI();
 
         // Add a wobble effect
@@ -663,6 +831,44 @@ function initFooterGame() {
             clicks -= autoClickerCost;
             autoClickers++;
             autoClickerCost = Math.floor(autoClickerCost * 1.5);
+            updateUI();
+        }
+    });
+
+    upgradeCritChanceBtn.addEventListener('click', () => {
+        if (clicks >= critChanceCost && critChance < 100) {
+            clicks -= critChanceCost;
+            critChance++;
+            critChanceCost = Math.floor(critChanceCost * 1.5);
+            updateUI();
+        }
+    });
+
+    upgradeCritDamageBtn.addEventListener('click', () => {
+        if (clicks >= critDamageCost) {
+            clicks -= critDamageCost;
+            critDamage++;
+            critDamageLevel++;
+            critDamageCost = Math.floor(critDamageCost * 1.5);
+            updateUI();
+        }
+    });
+
+    upgradeAutoCritChanceBtn.addEventListener('click', () => {
+        if (clicks >= autoCritChanceCost && autoCritChance < 100) {
+            clicks -= autoCritChanceCost;
+            autoCritChance++;
+            autoCritChanceCost = Math.floor(autoCritChanceCost * 1.5);
+            updateUI();
+        }
+    });
+
+    upgradeAutoCritDamageBtn.addEventListener('click', () => {
+        if (clicks >= autoCritDamageCost) {
+            clicks -= autoCritDamageCost;
+            autoCritDamage++;
+            autoCritDamageLevel++;
+            autoCritDamageCost = Math.floor(autoCritDamageCost * 1.5);
             updateUI();
         }
     });
