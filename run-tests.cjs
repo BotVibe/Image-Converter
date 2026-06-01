@@ -79,8 +79,12 @@ const mockWindow = {
     removeResult: null
 };
 
+const mockURL = {
+    revokeObjectURL: () => {}
+};
+
 // Inject mocks into the scope
-const runner = async (document, navigator, window) => {
+const runner = async (document, navigator, window, URL) => {
     class File {
         constructor(parts, name, options) {
             this.name = name;
@@ -121,7 +125,7 @@ const runner = async (document, navigator, window) => {
     ${testJsContent}
 };
 
-runner(mockDocument, mockNavigator, mockWindow).catch(e => {
+runner(mockDocument, mockNavigator, mockWindow, mockURL).catch(e => {
     console.error("Test failed:");
     console.error(e.stack || e.message);
     process.exit(1);
