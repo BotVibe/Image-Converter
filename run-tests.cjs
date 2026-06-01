@@ -46,6 +46,8 @@ class MockElement {
         remove: () => {},
         contains: () => false
     };
+    querySelector() { return null; }
+    remove() { }
     get textContent() { return this._textContent; }
     set textContent(v) { this._textContent = v; }
 }
