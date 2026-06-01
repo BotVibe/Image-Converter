@@ -44,7 +44,8 @@ const i18n = {
         autoCritDamageTitle: "Auto Crit Damage",
         critChanceHint: "+1% Chance",
         critDamageHint: "+1 Dmg",
-        maxLevel: "Max"
+        maxLevel: "Max",
+        clickHint: "*Click*"
     },
     de: {
         title: "Bild Konverter",
@@ -90,7 +91,8 @@ const i18n = {
         autoCritDamageTitle: "Auto Krit-Schaden",
         critChanceHint: "+1% Chance",
         critDamageHint: "+1 Schaden",
-        maxLevel: "Max"
+        maxLevel: "Max",
+        clickHint: "*Klick*"
     },
     fr: {
         title: "Convertisseur d'Images",
@@ -136,7 +138,8 @@ const i18n = {
         autoCritDamageTitle: "Auto Dégâts Crit",
         critChanceHint: "+1% Chance",
         critDamageHint: "+1 Dégât",
-        maxLevel: "Max"
+        maxLevel: "Max",
+        clickHint: "*Clic*"
     },
     it: {
         title: "Convertitore di Immagini",
@@ -182,7 +185,8 @@ const i18n = {
         autoCritDamageTitle: "Auto Danno Crit",
         critChanceHint: "+1% Prob",
         critDamageHint: "+1 Danno",
-        maxLevel: "Max"
+        maxLevel: "Max",
+        clickHint: "*Clic*"
     }
 };
 

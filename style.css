@@ -717,37 +717,54 @@ input[type=range]:active::-moz-range-thumb {
     display: inline-block;
 }
 
-.click-me-arrow {
+.click-me-hint-wrapper {
     position: absolute;
-    top: -60px;
-    right: -70px;
-    width: 80px;
-    height: 80px;
-    color: #fff;
-    filter: drop-shadow(3px 3px 0 var(--border-color));
+    top: -45px;
+    right: -30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     z-index: 10;
     pointer-events: none;
-    /* First spin in, then bounce continuously */
     animation:
-        spiralIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards,
-        bounceArrow 1s 0.8s infinite alternate ease-in-out;
-    transition: opacity 0.5s ease, transform 0.5s ease;
+        popInHint 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards,
+        bounceArrow 0.6s 0.4s infinite alternate ease-in-out;
+    transition: opacity 0.4s ease, transform 0.4s ease;
 }
 
-.click-me-arrow.fade-out {
+.click-me-hint-wrapper.fade-out {
     opacity: 0 !important;
     transform: translateY(-20px) scale(0.8) !important;
-    animation: none !important; /* Stop the bounce animation so it can fade out smoothly */
+    animation: none !important;
 }
 
-@keyframes spiralIn {
-    0% { transform: translateY(-50px) rotate(180deg) scale(0); opacity: 0; }
-    100% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+.click-me-text {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: #fff;
+    background-color: var(--border-color);
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius);
+    border: 2px solid var(--border-color);
+    transform: rotate(10deg);
+}
+
+.simple-arrow {
+    width: 32px;
+    height: 32px;
+    color: var(--border-color);
+    margin-top: -5px;
+}
+
+@keyframes popInHint {
+    0% { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
 }
 
 @keyframes bounceArrow {
-    0% { transform: translateY(0) rotate(0deg); }
-    100% { transform: translateY(10px) rotate(-5deg); }
+    0% { transform: translateY(0); }
+    100% { transform: translateY(8px); }
 }
 
 .floating-crit {
