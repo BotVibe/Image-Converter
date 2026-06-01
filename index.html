@@ -147,11 +147,12 @@
 
         <div id="footerGameContent" class="hidden">
             <div class="cookie-wrapper" id="cookieWrapper">
-                <!-- Neobrutalist hand-drawn spiral arrow -->
-                <svg id="clickMeArrow" class="click-me-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M 20 20 C 60 10, 90 40, 70 80 C 50 110, 10 90, 20 50 C 30 10, 80 10, 85 45 C 90 70, 60 90, 45 80" />
-                    <polyline points="30,70 45,80 55,65" />
-                </svg>
+                <div id="clickMeArrow" class="click-me-hint-wrapper">
+                    <span class="click-me-text" data-i18n="clickHint">*Click*</span>
+                    <svg class="simple-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7 10L12 15L17 10H7Z" />
+                    </svg>
+                </div>
 
                 <div class="cookie-container">
                     <svg id="githubCookie" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="80" height="80" fill="currentColor">
