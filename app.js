@@ -462,15 +462,34 @@ function setupQualityAndFormat() {
         triggerRecompress();
     });
 
-    maxFileSizeCheck.addEventListener('change', (e) => {
-        if (e.target.checked) {
-            qualityGroup.classList.add('hidden');
-            maxSizeGroup.classList.remove('hidden');
-        } else {
-            qualityGroup.classList.remove('hidden');
-            maxSizeGroup.classList.add('hidden');
+    const toggleMaxSizeUI = () => {
+        // Dynamically fetch elements to prevent stale references if DOM changes
+        const qGroup = document.getElementById('qualityGroup');
+        const mGroup = document.getElementById('maxSizeGroup');
+        const check = document.getElementById('maxFileSizeCheck');
+
+        if (check && qGroup && mGroup) {
+            if (check.checked) {
+                qGroup.classList.add('hidden');
+                mGroup.classList.remove('hidden');
+            } else {
+                qGroup.classList.remove('hidden');
+                mGroup.classList.add('hidden');
+            }
         }
+    };
+
+    maxFileSizeCheck.addEventListener('change', () => {
+        toggleMaxSizeUI();
         triggerRecompress();
+    });
+
+    // Also bind to click to handle iOS Safari and other edge cases where change might be swallowed
+    maxFileSizeCheck.addEventListener('click', () => {
+        // Just let it toggle the native checked state, the change event or this will handle UI
+        setTimeout(() => {
+            toggleMaxSizeUI();
+        }, 0);
     });
 
     targetSizeValueSelect.addEventListener('change', triggerRecompress);
