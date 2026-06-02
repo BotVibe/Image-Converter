@@ -3,30 +3,8 @@
 > vite
 
 
-  VITE v5.4.21  ready in 341 ms
+  VITE v5.4.21  ready in 325 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
-1:35:24 PM [vite] page reload app.js
-1:36:00 PM [vite] page reload index.html
-1:36:47 PM [vite] hmr update /style.css?direct
-1:37:30 PM [vite] page reload app.js
-2:03:03 PM [vite] page reload app.js
-2:03:49 PM [vite] page reload index.html
-2:04:37 PM [vite] hmr update /style.css?direct
-2:04:45 PM [vite] hmr update /style.css?direct
-2:05:33 PM [vite] page reload app.js
-5:30:17 AM [vite] hmr update /style.css?direct
-5:34:52 AM [vite] hmr update /style.css?direct
-8:11:49 AM [vite] page reload app.js
-8:13:18 AM [vite] page reload index.html
-8:14:56 AM [vite] hmr update /style.css?direct
-8:58:01 AM [vite] hmr update /style.css?direct
-8:59:53 AM [vite] page reload app.js
-9:00:29 AM [vite] page reload app.js
-9:01:00 AM [vite] page reload app.js
-9:12:34 AM [vite] page reload index.html
-9:15:29 AM [vite] hmr update /style.css?direct
-5:41:59 AM [vite] page reload app.js
-5:43:52 AM [vite] page reload index.html
-5:45:34 AM [vite] hmr update /style.css?direct
+10:08:12 AM [vite] hmr update /style.css?direct

@@ -98,15 +98,34 @@
                 </div>
             </div>
 
-            <div class="form-group checkbox-group">
-                <input type="checkbox" id="keepAspectRatio" checked>
-                <label for="keepAspectRatio" data-i18n="keepAspectRatio">Keep Aspect Ratio</label>
+            <div class="form-group checkbox-group multi-checkbox-group">
+                <div class="checkbox-wrapper">
+                    <input type="checkbox" id="keepAspectRatio" checked>
+                    <label for="keepAspectRatio" data-i18n="keepAspectRatio">Keep Aspect Ratio</label>
+                </div>
+                <div class="checkbox-wrapper">
+                    <input type="checkbox" id="maxFileSizeCheck">
+                    <label for="maxFileSizeCheck" data-i18n="maxFileSizeToggle">Limit File Size</label>
+                </div>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" id="qualityGroup">
                 <label for="qualitySlider" id="qualityLabel"><span data-i18n="quality">Quality</span>: <span id="qualityValue">90</span>%</label>
                 <div class="slider-container">
                     <input type="range" id="qualitySlider" min="1" max="100" value="90">
+                </div>
+            </div>
+
+            <div class="form-group hidden" id="maxSizeGroup">
+                <label data-i18n="targetSizeValue">Max Size:</label>
+                <div class="max-size-controls">
+                    <select id="targetSizeValueSelect">
+                        <!-- Options populated by JS -->
+                    </select>
+                    <select id="targetSizeUnitSelect">
+                        <option value="MB" data-i18n="unitMB">MB</option>
+                        <option value="KB" data-i18n="unitKB">KB</option>
+                    </select>
                 </div>
             </div>
 

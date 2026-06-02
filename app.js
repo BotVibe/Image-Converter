@@ -9,6 +9,11 @@ const i18n = {
         maxWidth: "Max Width (px):",
         maxHeight: "Max Height (px):",
         keepAspectRatio: "Keep Aspect Ratio",
+        maxFileSizeToggle: "Limit File Size",
+        targetSizeValue: "Max Size:",
+        unitMB: "MB",
+        unitKB: "KB",
+        calculating: "Calculating...",
         dropText: "Drag & Drop images here or click to select",
         resultsTitle: "Converted Images",
         downloadZip: "Download All as ZIP",
@@ -56,6 +61,11 @@ const i18n = {
         maxWidth: "Maximale Breite (px):",
         maxHeight: "Maximale Höhe (px):",
         keepAspectRatio: "Seitenverhältnis beibehalten",
+        maxFileSizeToggle: "Max. Dateigröße",
+        targetSizeValue: "Max Größe:",
+        unitMB: "MB",
+        unitKB: "KB",
+        calculating: "Berechne...",
         dropText: "Bilder hier ablegen (Drag & Drop) oder klicken zur Auswahl",
         resultsTitle: "Konvertierte Bilder",
         downloadZip: "Alle als ZIP herunterladen",
@@ -103,6 +113,11 @@ const i18n = {
         maxWidth: "Largeur max (px):",
         maxHeight: "Hauteur max (px):",
         keepAspectRatio: "Conserver les proportions",
+        maxFileSizeToggle: "Taille max du fichier",
+        targetSizeValue: "Taille max:",
+        unitMB: "Mo",
+        unitKB: "Ko",
+        calculating: "Calcul en cours...",
         dropText: "Glissez et déposez des images ici ou cliquez pour sélectionner",
         resultsTitle: "Images Converties",
         downloadZip: "Tout télécharger en ZIP",
@@ -150,6 +165,11 @@ const i18n = {
         maxWidth: "Larghezza max (px):",
         maxHeight: "Altezza max (px):",
         keepAspectRatio: "Mantieni proporzioni",
+        maxFileSizeToggle: "Dimensione massima file",
+        targetSizeValue: "Dimensione max:",
+        unitMB: "MB",
+        unitKB: "KB",
+        calculating: "Calcolo...",
         dropText: "Trascina le immagini qui o clicca per selezionare",
         resultsTitle: "Immagini Convertite",
         downloadZip: "Scarica tutto come ZIP",
@@ -244,11 +264,12 @@ function setupCustomSelects() {
                 select.selectedIndex = index;
                 select.dispatchEvent(new Event('change'));
 
-                // Update selected class
-                Array.from(optionsDiv.children).forEach(c => c.classList.remove('selected'));
-                optDiv.classList.add('selected');
-
-                updateTriggerText();
+    // Update selected class (Wait for tick to ensure DOM catches up if dynamic)
+    setTimeout(() => {
+        Array.from(optionsDiv.children).forEach(c => c.classList.remove('selected'));
+        optDiv.classList.add('selected');
+        updateTriggerText();
+    }, 0);
                 optionsDiv.classList.remove('open');
                 trigger.classList.remove('active');
             });
@@ -399,6 +420,63 @@ function setupQualityAndFormat() {
     const qualitySlider = document.getElementById('qualitySlider');
     const qualityValue = document.getElementById('qualityValue');
     const sliderContainer = qualitySlider.parentElement;
+
+    const qualityGroup = document.getElementById('qualityGroup');
+    const maxSizeGroup = document.getElementById('maxSizeGroup');
+    const maxFileSizeCheck = document.getElementById('maxFileSizeCheck');
+    const targetSizeValueSelect = document.getElementById('targetSizeValueSelect');
+    const targetSizeUnitSelect = document.getElementById('targetSizeUnitSelect');
+
+    const updateMaxSizeOptions = () => {
+        const unit = targetSizeUnitSelect.value;
+        targetSizeValueSelect.innerHTML = '';
+        if (unit === 'MB') {
+            for (let i = 1; i <= 10; i++) {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = i;
+                targetSizeValueSelect.appendChild(opt);
+            }
+        } else {
+            for (let i = 100; i <= 1000; i += 100) {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = i;
+                targetSizeValueSelect.appendChild(opt);
+            }
+        }
+
+        // Re-initialize custom select for this specific dropdown if it exists,
+        // or let the initial setup catch it.
+        const existingWrapper = targetSizeValueSelect.closest('.custom-select-wrapper');
+        if (existingWrapper) {
+            // Un-wrap and re-wrap to recreate options
+            existingWrapper.parentNode.insertBefore(targetSizeValueSelect, existingWrapper);
+            existingWrapper.remove();
+            setupCustomSelects(); // Will only process un-wrapped ones
+        }
+    };
+
+    targetSizeUnitSelect.addEventListener('change', () => {
+        updateMaxSizeOptions();
+        triggerRecompress();
+    });
+
+    maxFileSizeCheck.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            qualityGroup.classList.add('hidden');
+            maxSizeGroup.classList.remove('hidden');
+        } else {
+            qualityGroup.classList.remove('hidden');
+            maxSizeGroup.classList.add('hidden');
+        }
+        triggerRecompress();
+    });
+
+    targetSizeValueSelect.addEventListener('change', triggerRecompress);
+
+    // Initial setup
+    updateMaxSizeOptions();
 
     const updateSliderPercent = () => {
         const val = qualitySlider.value;
@@ -1195,19 +1273,25 @@ async function encodeImage(canvas, ctx, width, height, format, extension, qualit
 async function processImage(file, existingId = null) {
     const id = existingId || (Date.now() + Math.random().toString(36).substr(2, 9));
 
+    const isMaxSizeEnabled = document.getElementById('maxFileSizeCheck').checked;
+
     if (!existingId) {
         originalFiles.set(id, file);
         createResultItem(id, file);
     } else {
         const statusContainer = document.getElementById(`status-${id}`);
-        statusContainer.innerHTML = `<span class="status-processing" data-i18n="processing">${i18n[currentLang].processing}</span>`;
+        if (isMaxSizeEnabled) {
+            statusContainer.innerHTML = `<span class="status-processing" data-i18n="calculating">${i18n[currentLang].calculating}</span>`;
+        } else {
+            statusContainer.innerHTML = `<span class="status-processing" data-i18n="processing">${i18n[currentLang].processing}</span>`;
+        }
     }
 
     const format = document.getElementById('formatSelect').value;
     const extension = format.split('/')[1];
 
-    // Get quality from slider
-    const quality = parseInt(document.getElementById('qualitySlider').value, 10) / 100;
+    // Get quality from slider (used as fallback or initial)
+    let baseQuality = parseInt(document.getElementById('qualitySlider').value, 10) / 100;
 
     // Concurrency control: wait if we're already processing max concurrent images
     if (activeProcessing >= MAX_CONCURRENT) {
@@ -1288,32 +1372,115 @@ async function processImage(file, existingId = null) {
         const previewUrl = previewCanvas.toDataURL('image/png', 0.5);
         document.getElementById(`preview-${id}`).src = previewUrl;
 
-        const { blob, actualFormat, actualExtension } = await encodeImage(canvas, ctx, width, height, format, extension, quality);
+        let finalBlob = null;
+        let finalFormat = format;
+        let finalExtension = extension;
 
-        if (!blob) {
+        if (isMaxSizeEnabled) {
+            // Update UI to show calculating state if we haven't already
+            const statusContainer = document.getElementById(`status-${id}`);
+            statusContainer.innerHTML = `<span class="status-processing" data-i18n="calculating">${i18n[currentLang].calculating}</span>`;
+
+            // Calculate target size in Bytes
+            const targetVal = parseInt(document.getElementById('targetSizeValueSelect').value, 10);
+            const targetUnit = document.getElementById('targetSizeUnitSelect').value;
+            const targetSizeBytes = targetUnit === 'MB' ? targetVal * 1024 * 1024 : targetVal * 1024;
+
+            // Unblock UI thread before starting heavy encoding
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+            // Strategy: Check if original file is already smaller than target size.
+            // If so, attempt to encode at 100% quality (1.0).
+            if (file.size <= targetSizeBytes) {
+                const { blob: testBlob, actualFormat: testFmt, actualExtension: testExt } = await encodeImage(canvas, ctx, width, height, format, extension, 1.0);
+
+                // Yield to main thread again after first encode attempt
+                await new Promise(resolve => setTimeout(resolve, 0));
+
+                if (testBlob && testBlob.size <= targetSizeBytes) {
+                    finalBlob = testBlob;
+                    finalFormat = testFmt;
+                    finalExtension = testExt;
+                }
+            }
+
+            // If we still don't have a valid blob, do a binary search for the best quality
+            if (!finalBlob) {
+                let low = 0.01;
+                let high = 1.0;
+                let bestBlob = null;
+                let bestFormat = format;
+                let bestExt = extension;
+                const maxIterations = 5;
+
+                for (let iter = 0; iter < maxIterations; iter++) {
+                    // Update calculating text occasionally if possible, yield to UI thread
+                    await new Promise(resolve => setTimeout(resolve, 0));
+
+                    const mid = (low + high) / 2;
+                    const { blob: iterBlob, actualFormat: iterFmt, actualExtension: iterExt } = await encodeImage(canvas, ctx, width, height, format, extension, mid);
+
+                    if (!iterBlob) break;
+
+                    if (iterBlob.size <= targetSizeBytes) {
+                        bestBlob = iterBlob;
+                        bestFormat = iterFmt;
+                        bestExt = iterExt;
+                        low = mid; // Try to go higher to get better quality
+                    } else {
+                        high = mid; // Size is too big, go lower
+                    }
+                }
+
+                if (bestBlob) {
+                    finalBlob = bestBlob;
+                    finalFormat = bestFormat;
+                    finalExtension = bestExt;
+                } else {
+                    // Yield to UI before fallback encode
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                    // Fallback to lowest possible quality if we couldn't hit the target
+                    const { blob: fallbackBlob, actualFormat: fallFmt, actualExtension: fallExt } = await encodeImage(canvas, ctx, width, height, format, extension, 0.01);
+                    finalBlob = fallbackBlob;
+                    finalFormat = fallFmt;
+                    finalExtension = fallExt;
+                }
+            }
+
+        } else {
+            // Normal slider-based encoding
+            // Unblock UI thread before starting heavy encoding
+            await new Promise(resolve => setTimeout(resolve, 0));
+            const { blob, actualFormat, actualExtension } = await encodeImage(canvas, ctx, width, height, format, extension, baseQuality);
+            finalBlob = blob;
+            finalFormat = actualFormat;
+            finalExtension = actualExtension;
+        }
+
+        if (!finalBlob) {
             showError(id);
             return;
         }
 
         const safeBaseName = sanitizeFilename(file.name).replace(/\.[^/.]+$/, "");
-        const newName = safeBaseName + `.${actualExtension}`;
+        const newName = safeBaseName + `.${finalExtension}`;
 
         // Store for ZIP
         const existingIndex = convertedFiles.findIndex(f => f.id === id);
         if (existingIndex > -1) {
             convertedFiles.splice(existingIndex, 1);
         }
-        convertedFiles.push({ id: id, name: newName, blob: blob });
+        convertedFiles.push({ id: id, name: newName, blob: finalBlob });
 
-        const blobUrl = URL.createObjectURL(blob);
+        const blobUrl = URL.createObjectURL(finalBlob);
 
         // Format sizes nicely
         const origSizeMB = (file.size / (1024 * 1024)).toFixed(2);
         let compSizeStr = '';
-        if (blob.size > 1024 * 1024) {
-            compSizeStr = (blob.size / (1024 * 1024)).toFixed(2) + ' MB';
+        if (finalBlob.size > 1024 * 1024) {
+            compSizeStr = (finalBlob.size / (1024 * 1024)).toFixed(2) + ' MB';
         } else {
-            compSizeStr = (blob.size / 1024).toFixed(1) + ' KB';
+            compSizeStr = (finalBlob.size / 1024).toFixed(1) + ' KB';
         }
 
         document.getElementById(`meta-${id}`).innerHTML = `
