@@ -400,6 +400,82 @@ function setupQualityAndFormat() {
     const qualityValue = document.getElementById('qualityValue');
     const sliderContainer = qualitySlider.parentElement;
 
+    const qualityGroup = document.getElementById('qualityGroup');
+    const maxSizeGroup = document.getElementById('maxSizeGroup');
+    const maxFileSizeCheck = document.getElementById('maxFileSizeCheck');
+    const targetSizeValueSelect = document.getElementById('targetSizeValueSelect');
+    const targetSizeUnitSelect = document.getElementById('targetSizeUnitSelect');
+
+    const updateMaxSizeOptions = () => {
+        const unit = targetSizeUnitSelect.value;
+        targetSizeValueSelect.innerHTML = '';
+        if (unit === 'MB') {
+            for (let i = 1; i <= 10; i++) {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = i;
+                targetSizeValueSelect.appendChild(opt);
+            }
+        } else {
+            for (let i = 100; i <= 1000; i += 100) {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = i;
+                targetSizeValueSelect.appendChild(opt);
+            }
+        }
+
+        // Re-initialize custom select for this specific dropdown if it exists,
+        // or let the initial setup catch it.
+        const existingWrapper = targetSizeValueSelect.closest('.custom-select-wrapper');
+        if (existingWrapper) {
+            // Un-wrap and re-wrap to recreate options
+            existingWrapper.parentNode.insertBefore(targetSizeValueSelect, existingWrapper);
+            existingWrapper.remove();
+            setupCustomSelects(); // Will only process un-wrapped ones
+        }
+    };
+
+    targetSizeUnitSelect.addEventListener('change', () => {
+        updateMaxSizeOptions();
+        triggerRecompress();
+    });
+
+    const toggleMaxSizeUI = () => {
+        // Dynamically fetch elements to prevent stale references if DOM changes
+        const qGroup = document.getElementById('qualityGroup');
+        const mGroup = document.getElementById('maxSizeGroup');
+        const check = document.getElementById('maxFileSizeCheck');
+
+        if (check && qGroup && mGroup) {
+            if (check.checked) {
+                qGroup.classList.add('hidden');
+                mGroup.classList.remove('hidden');
+            } else {
+                qGroup.classList.remove('hidden');
+                mGroup.classList.add('hidden');
+            }
+        }
+    };
+
+    maxFileSizeCheck.addEventListener('change', () => {
+        toggleMaxSizeUI();
+        triggerRecompress();
+    });
+
+    // Also bind to click to handle iOS Safari and other edge cases where change might be swallowed
+    maxFileSizeCheck.addEventListener('click', () => {
+        // Just let it toggle the native checked state, the change event or this will handle UI
+        setTimeout(() => {
+            toggleMaxSizeUI();
+        }, 0);
+    });
+
+    targetSizeValueSelect.addEventListener('change', triggerRecompress);
+
+    // Initial setup
+    updateMaxSizeOptions();
+
     const updateSliderPercent = () => {
         const val = qualitySlider.value;
         const min = qualitySlider.min || 1;
