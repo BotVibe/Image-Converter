@@ -227,7 +227,11 @@ function setupCustomSelects() {
 
         const updateTriggerText = () => {
             const selectedOption = select.options[select.selectedIndex];
-            trigger.innerHTML = `<span>${selectedOption.text}</span>${arrowSvg}`;
+            trigger.innerHTML = '';
+            const span = document.createElement('span');
+            span.textContent = selectedOption.text;
+            trigger.appendChild(span);
+            trigger.insertAdjacentHTML('beforeend', arrowSvg);
         };
         updateTriggerText();
 
