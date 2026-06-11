@@ -308,7 +308,7 @@ function applyLanguage() {
 import encodeAvif, { init as initAvif } from '@jsquash/avif/encode';
 import encodeWebp, { init as initWebp } from '@jsquash/webp/encode';
 
-const convertedFiles = []; // To store blobs for ZIP
+const convertedFiles = new Map(); // To store blobs for ZIP
 const originalFiles = new Map(); // To store original files mapping (id -> file)
 const imageCache = new Map(); // To store decoded images (id -> ImageBitmap/HTMLImageElement)
 
@@ -883,7 +883,7 @@ function initFooterGame() {
 }
 
 async function downloadZip() {
-    if (convertedFiles.length === 0) return;
+    if (convertedFiles.size === 0) return;
 
     const zipBtn = document.getElementById('downloadZipBtn');
     const originalText = zipBtn.textContent;
@@ -1303,11 +1303,8 @@ async function processImage(file, existingId = null) {
         const newName = safeBaseName + `.${actualExtension}`;
 
         // Store for ZIP
-        const existingIndex = convertedFiles.findIndex(f => f.id === id);
-        if (existingIndex > -1) {
-            convertedFiles.splice(existingIndex, 1);
-        }
-        convertedFiles.push({ id: id, name: newName, blob: blob });
+        convertedFiles.delete(id);
+        convertedFiles.set(id, { id: id, name: newName, blob: blob });
 
         const blobUrl = URL.createObjectURL(blob);
 
@@ -1506,10 +1503,9 @@ window.removeResult = function(id) {
         imageCache.delete(id);
     }
 
-    const index = convertedFiles.findIndex(f => f.id === id);
-    if (index > -1) convertedFiles.splice(index, 1);
+    convertedFiles.delete(id);
 
-    if (convertedFiles.length === 0) {
+    if (convertedFiles.size === 0) {
         document.getElementById('resultsPanel').classList.add('hidden');
         // Reset global dimensions when all items are removed
         globalMaxWidth = 0;
@@ -1537,7 +1533,7 @@ function clearAll() {
 
     document.getElementById('resultsList').innerHTML = '';
     document.getElementById('resultsPanel').classList.add('hidden');
-    convertedFiles.length = 0;
+    convertedFiles.clear();
     originalFiles.clear();
 
     // Reset global max dimensions

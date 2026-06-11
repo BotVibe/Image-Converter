@@ -31,7 +31,7 @@ async function runClearAllTests() {
     inputHeight.value = "200";
 
     // Set up global variables to verify they get reset
-    convertedFiles.push({}, {}); // simulate 2 items
+    convertedFiles.set('1', {}); convertedFiles.set('2', {}); // simulate 2 items
     originalFiles.set("file1", {});
     globalMaxWidth = 800;
     globalMaxHeight = 600;
@@ -76,7 +76,7 @@ async function runClearAllTests() {
         assert(inputHeight.value === '', "inputHeight.value should be cleared");
 
         // 3. Verify global state resets
-        assert(convertedFiles.length === 0, "convertedFiles should be empty");
+        assert(convertedFiles.size === 0, "convertedFiles should be empty");
         assert(originalFiles.size === 0, "originalFiles should be empty");
         assert(globalMaxWidth === 0, "globalMaxWidth should be 0");
         assert(globalMaxHeight === 0, "globalMaxHeight should be 0");

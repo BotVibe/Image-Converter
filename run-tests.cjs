@@ -68,7 +68,10 @@ const mockDocument = {
         return text;
     },
     querySelectorAll: () => [],
-    addEventListener: () => {}
+    addEventListener: () => {},
+    documentElement: { lang: 'en' },
+    body: new MockElement('body'),
+    title: ''
 };
 
 const mockNavigator = {
@@ -80,7 +83,8 @@ const mockWindow = {
 };
 
 const mockURL = {
-    revokeObjectURL: () => {}
+    revokeObjectURL: () => {},
+    createObjectURL: () => 'blob:mock'
 };
 
 // Inject mocks into the scope
@@ -107,16 +111,19 @@ const runner = async (document, navigator, window, URL) => {
     class FileReader {
         readAsArrayBuffer(blob) {
             setTimeout(() => {
-                this.onload({ target: { result: blob._buffer } });
+                if (this.onload) this.onload({ target: { result: blob._buffer } });
             }, 0);
         }
         readAsText(blob) {
             setTimeout(() => {
                 // very simple mock for text since we just test PDF/TXT/SVG
-                this.onload({ target: { result: new TextDecoder().decode(blob._buffer) } });
+                if (this.onload) this.onload({ target: { result: new TextDecoder().decode(blob._buffer) } });
             }, 0);
         }
     }
+    const matchMedia = () => ({ matches: false });
+    window.matchMedia = matchMedia;
+    const alert = () => {};
 
     ${utilsJsContent}
 
