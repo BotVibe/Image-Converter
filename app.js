@@ -21,6 +21,7 @@ const i18n = {
         quality: "Quality",
         original: "Original",
         compressed: "Compressed",
+        qualityNotSupported: "Quality setting is not supported for this format.",
         howItWorksTitle: "How it works & Privacy",
         howItWorksText: "This tool converts your images directly within your browser. By utilizing your device's processing power and modern browser capabilities, no images are ever uploaded to an external server. This guarantees 100% privacy and lightning-fast processing, as your data never leaves your device.",
         githubRepo: "View Source on GitHub",
@@ -68,6 +69,7 @@ const i18n = {
         quality: "Qualität",
         original: "Original",
         compressed: "Komprimiert",
+        qualityNotSupported: "Qualitätseinstellung wird für dieses format nicht unterstützt.",
         howItWorksTitle: "Funktionsweise & Datenschutz",
         howItWorksText: "Dieses Tool konvertiert Ihre Bilder direkt in Ihrem Browser. Durch die Nutzung der Rechenleistung Ihres Geräts und moderner Browserfunktionen werden niemals Bilder auf einen externen Server hochgeladen. Dies garantiert 100% Datenschutz und eine blitzschnelle Verarbeitung, da Ihre Daten Ihr Gerät nie verlassen.",
         githubRepo: "Quellcode auf GitHub ansehen",
@@ -115,6 +117,7 @@ const i18n = {
         quality: "Qualité",
         original: "Original",
         compressed: "Compressé",
+        qualityNotSupported: "Le paramètre de qualité n'est pas pris en charge pour ce format.",
         howItWorksTitle: "Comment ça marche et Confidentialité",
         howItWorksText: "Cet outil convertit vos images directement dans votre navigateur. En utilisant la puissance de traitement de votre appareil et les capacités des navigateurs modernes, aucune image n'est jamais téléchargée sur un serveur externe. Cela garantit une confidentialité à 100 % et un traitement ultra-rapide, car vos données ne quittent jamais votre appareil.",
         githubRepo: "Voir le code source sur GitHub",
@@ -162,6 +165,7 @@ const i18n = {
         quality: "Qualità",
         original: "Originale",
         compressed: "Compresso",
+        qualityNotSupported: "L'impostazione della qualità non è supportata per questo formato.",
         howItWorksTitle: "Come funziona e Privacy",
         howItWorksText: "Questo strumento converte le tue immagini direttamente nel tuo browser. Utilizzando la potenza di elaborazione del tuo dispositivo e le moderne capacità del browser, nessuna immagine viene mai caricata su un server esterno. Questo garantisce il 100% di privacy e un'elaborazione fulminea, poiché i tuoi dati non lasciano mai il tuo dispositivo.",
         githubRepo: "Visualizza il codice sorgente su GitHub",
@@ -452,6 +456,28 @@ function setupQualityAndFormat() {
     formatSelect.addEventListener('change', triggerRecompress);
     inputWidth.addEventListener('change', triggerRecompress);
     inputHeight.addEventListener('change', triggerRecompress);
+
+    const updateQualitySliderState = () => {
+        const format = formatSelect.value;
+        const formGroup = document.getElementById('qualityLabel').parentElement;
+        const formatWarning = document.getElementById('formatWarning');
+
+        if (format === 'image/png' || format === 'image/x-icon') {
+            qualitySlider.disabled = true;
+            formGroup.style.opacity = '0.5';
+            formGroup.style.pointerEvents = 'none';
+            formatWarning.classList.remove('hidden');
+            formatWarning.textContent = i18n[currentLang]['qualityNotSupported'];
+        } else {
+            qualitySlider.disabled = false;
+            formGroup.style.opacity = '1';
+            formGroup.style.pointerEvents = 'auto';
+            formatWarning.classList.add('hidden');
+        }
+    };
+
+    formatSelect.addEventListener('change', updateQualitySliderState);
+    updateQualitySliderState(); // Initial check
 }
 
 function setupDragAndDrop() {
