@@ -761,15 +761,43 @@ function initFooterGame() {
                 let autoClicksAdded = 0;
                 let critsOccurred = false;
 
-                // Roll for each individual auto-clicker
-                for (let i = 0; i < autoClickers; i++) {
-                    const roll = Math.random() * 100;
-                    if (roll < autoCritChance) {
-                        autoClicksAdded += (1 + autoCritDamage);
-                        critsOccurred = true;
-                    } else {
-                        autoClicksAdded += 1;
+                if (autoClickers <= 100) {
+                    // Roll for each individual auto-clicker if count is small
+                    for (let i = 0; i < autoClickers; i++) {
+                        const roll = Math.random() * 100;
+                        if (roll < autoCritChance) {
+                            autoClicksAdded += (1 + autoCritDamage);
+                            critsOccurred = true;
+                        } else {
+                            autoClicksAdded += 1;
+                        }
                     }
+                } else {
+                    // Approximation for large numbers
+                    function gaussianRandom(mean=0, stdev=1) {
+                        let u = 1 - Math.random();
+                        let v = Math.random();
+                        let z = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+                        return z * stdev + mean;
+                    }
+
+                    const n = autoClickers;
+                    const p = autoCritChance / 100;
+
+                    const mean = n * p;
+                    const variance = n * p * (1 - p);
+                    const stdev = Math.sqrt(variance);
+
+                    // Approximate number of crits
+                    let crits = Math.round(gaussianRandom(mean, stdev));
+
+                    // Clamp to valid range [0, n]
+                    crits = Math.max(0, Math.min(n, crits));
+
+                    const normalClicks = n - crits;
+
+                    autoClicksAdded = normalClicks + (crits * (1 + autoCritDamage));
+                    critsOccurred = crits > 0;
                 }
 
                 clicks += autoClicksAdded;
