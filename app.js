@@ -69,7 +69,7 @@ const i18n = {
         quality: "Qualität",
         original: "Original",
         compressed: "Komprimiert",
-        qualityNotSupported: "Qualitätseinstellung wird für dieses format nicht unterstützt.",
+        qualityNotSupported: "Dieses Dateiformat unterstützt systembedingt keine Qualitätseinstellungen.",
         howItWorksTitle: "Funktionsweise & Datenschutz",
         howItWorksText: "Dieses Tool konvertiert Ihre Bilder direkt in Ihrem Browser. Durch die Nutzung der Rechenleistung Ihres Geräts und moderner Browserfunktionen werden niemals Bilder auf einen externen Server hochgeladen. Dies garantiert 100% Datenschutz und eine blitzschnelle Verarbeitung, da Ihre Daten Ihr Gerät nie verlassen.",
         githubRepo: "Quellcode auf GitHub ansehen",
