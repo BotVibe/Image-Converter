@@ -40,6 +40,13 @@ This project uses Vite to bundle the WebAssembly encoders efficiently.
    ```
 2. The static files will be placed into the `dist/` folder. You can deploy this entire folder to any static hosting provider.
 
+### Running Tests
+```bash
+npm test          # Unit tests (Node.js)
+npm run test:e2e  # End-to-end tests (Playwright)
+npm run test:all  # Both test suites
+```
+
 ### Automated Deployment (GitHub Pages)
 This repository includes a GitHub Action (`.github/workflows/deploy.yml`) that automatically builds and deploys the application to GitHub Pages whenever changes are pushed to the `main` branch.
 To enable it:

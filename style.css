@@ -206,6 +206,11 @@ select {
     transform: translate(4px, 4px);
 }
 
+.custom-select-trigger:focus-visible {
+    outline: 3px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
 .custom-select-options {
     position: absolute;
     top: calc(100% + 0.5rem);
@@ -237,7 +242,7 @@ select {
     border-bottom: none;
 }
 
-.custom-option:hover, .custom-option.selected {
+.custom-option:hover, .custom-option.selected, .custom-option.highlighted {
     background-color: var(--primary-color);
     color: #0b0f19;
 }

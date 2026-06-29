@@ -214,20 +214,37 @@ function initI18n() {
 }
 
 function setupCustomSelects() {
+    const closeAllSelects = () => {
+        document.querySelectorAll('.custom-select-options').forEach(el => el.classList.remove('open'));
+        document.querySelectorAll('.custom-select-trigger').forEach(el => {
+            el.classList.remove('active');
+            el.setAttribute('aria-expanded', 'false');
+        });
+        document.querySelectorAll('.custom-option.highlighted').forEach(el => el.classList.remove('highlighted'));
+    };
+
     const selects = document.querySelectorAll('select');
     selects.forEach(select => {
-        // Skip if already processed
         if (select.parentElement.classList.contains('custom-select-wrapper')) return;
 
         const wrapper = document.createElement('div');
         wrapper.className = 'custom-select-wrapper';
+        if (select.id) wrapper.dataset.selectId = select.id;
         select.parentNode.insertBefore(wrapper, select);
         wrapper.appendChild(select);
 
+        const listboxId = select.id ? `${select.id}-listbox` : `custom-select-${Math.random().toString(36).slice(2)}-listbox`;
+        let highlightedIndex = select.selectedIndex;
+
         const trigger = document.createElement('div');
         trigger.className = 'custom-select-trigger';
-        // Arrow SVG
-        const arrowSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+        trigger.setAttribute('role', 'combobox');
+        trigger.setAttribute('tabindex', '0');
+        trigger.setAttribute('aria-haspopup', 'listbox');
+        trigger.setAttribute('aria-expanded', 'false');
+        trigger.setAttribute('aria-controls', listboxId);
+
+        const arrowSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
 
         const updateTriggerText = () => {
             const selectedOption = select.options[select.selectedIndex];
@@ -241,52 +258,102 @@ function setupCustomSelects() {
 
         const optionsDiv = document.createElement('div');
         optionsDiv.className = 'custom-select-options';
+        optionsDiv.id = listboxId;
+        optionsDiv.setAttribute('role', 'listbox');
+
+        const updateOptionStates = () => {
+            Array.from(optionsDiv.children).forEach((child, index) => {
+                child.classList.toggle('selected', index === select.selectedIndex);
+                child.classList.toggle('highlighted', index === highlightedIndex);
+                child.setAttribute('aria-selected', index === select.selectedIndex ? 'true' : 'false');
+            });
+        };
+
+        const closeSelect = () => {
+            optionsDiv.classList.remove('open');
+            trigger.classList.remove('active');
+            trigger.setAttribute('aria-expanded', 'false');
+            Array.from(optionsDiv.children).forEach(child => child.classList.remove('highlighted'));
+        };
+
+        const openSelect = () => {
+            closeAllSelects();
+            highlightedIndex = select.selectedIndex;
+            optionsDiv.classList.add('open');
+            trigger.classList.add('active');
+            trigger.setAttribute('aria-expanded', 'true');
+            updateOptionStates();
+        };
+
+        const selectOption = (index) => {
+            select.selectedIndex = index;
+            highlightedIndex = index;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            updateOptionStates();
+            updateTriggerText();
+            closeSelect();
+            trigger.focus();
+        };
 
         Array.from(select.options).forEach((option, index) => {
             const optDiv = document.createElement('div');
             optDiv.className = 'custom-option';
-            if (index === select.selectedIndex) optDiv.classList.add('selected');
+            optDiv.setAttribute('role', 'option');
+            optDiv.dataset.value = option.value;
             optDiv.textContent = option.text;
 
-            optDiv.addEventListener('click', () => {
-                select.selectedIndex = index;
-                select.dispatchEvent(new Event('change'));
-
-                // Update selected class
-                Array.from(optionsDiv.children).forEach(c => c.classList.remove('selected'));
-                optDiv.classList.add('selected');
-
-                updateTriggerText();
-                optionsDiv.classList.remove('open');
-                trigger.classList.remove('active');
+            optDiv.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectOption(index);
             });
+
             optionsDiv.appendChild(optDiv);
         });
+        updateOptionStates();
 
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
-            const isOpen = optionsDiv.classList.contains('open');
-            // Close all other selects
-            document.querySelectorAll('.custom-select-options').forEach(el => el.classList.remove('open'));
-            document.querySelectorAll('.custom-select-trigger').forEach(el => el.classList.remove('active'));
+            if (optionsDiv.classList.contains('open')) closeSelect();
+            else openSelect();
+        });
 
-            if (!isOpen) {
-                optionsDiv.classList.add('open');
-                trigger.classList.add('active');
+        trigger.addEventListener('keydown', (e) => {
+            const optionCount = select.options.length;
+            const isOpen = optionsDiv.classList.contains('open');
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (!isOpen) openSelect();
+                else highlightedIndex = (highlightedIndex + 1) % optionCount;
+                updateOptionStates();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (!isOpen) openSelect();
+                else highlightedIndex = (highlightedIndex - 1 + optionCount) % optionCount;
+                updateOptionStates();
+            } else if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                if (isOpen) selectOption(highlightedIndex);
+                else openSelect();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                closeSelect();
+            } else if (e.key === 'Tab') {
+                closeSelect();
             }
         });
 
         wrapper.appendChild(trigger);
         wrapper.appendChild(optionsDiv);
 
-        // Listen to programmatic changes (e.g., from i18n initialization)
-        select.addEventListener('change', updateTriggerText);
+        select.addEventListener('change', () => {
+            highlightedIndex = select.selectedIndex;
+            updateTriggerText();
+            updateOptionStates();
+        });
     });
 
-    document.addEventListener('click', () => {
-        document.querySelectorAll('.custom-select-options').forEach(el => el.classList.remove('open'));
-        document.querySelectorAll('.custom-select-trigger').forEach(el => el.classList.remove('active'));
-    });
+    document.addEventListener('click', closeAllSelects);
 }
 
 function applyLanguage() {
@@ -568,7 +635,7 @@ function initTheme() {
 
     updateToggleUI();
 
-    themeToggle.addEventListener('click', () => {
+    const toggleTheme = () => {
         const isLight = root.getAttribute('data-theme') === 'light';
         if (isLight) {
             root.removeAttribute('data-theme'); // default to dark
@@ -576,6 +643,14 @@ function initTheme() {
             root.setAttribute('data-theme', 'light');
         }
         updateToggleUI();
+    };
+
+    themeToggle.addEventListener('click', toggleTheme);
+    themeToggle.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleTheme();
+        }
     });
 }
 
