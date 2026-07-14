@@ -35,8 +35,9 @@ When interacting with this repository, AI agents must strictly adhere to the fol
 - Use a `processingSession` counter bumped on `clearAll` so in-flight `processImage` calls ignore stale completions.
 - Invalid uploads are tracked in `invalidFileIds` and must be skipped by `triggerRecompress`.
 - Debounce `triggerRecompress` (~150ms) so rapid slider/format changes do not stampede encoding.
-- Cap concurrent encodes with `MAX_CONCURRENT` (3). Hard-cap output dimensions at 4096px.
+- Cap concurrent encodes with `MAX_CONCURRENT` (2). Hard-cap output dimensions at 4096px.
 - Failed conversions (`showError`) must include a remove button, same as invalid-file rows.
+- Yield to the UI (`yieldToUI`) between decode / canvas / encode stages so progress overlays can paint; keep a batch progress overlay (`#batchProgress`) updated via `noteBatchItemQueued` / `noteBatchItemFinished` (epoch-guarded against `clearAll`).
 
 ## Documentation Maintenance
 - The AI agent must automatically update `README.md` and `AGENTS.md` whenever significant architectural, feature, or structural changes are made to the codebase.
@@ -52,6 +53,7 @@ When interacting with this repository, AI agents must strictly adhere to the fol
   - Handles memory management gracefully (e.g., revoking Blob URLs when an individual image is removed or recompressed).
   - Contains the core logic for calculating image dimensions (bounding box vs. exact stretch based on the aspect ratio toggle).
   - Handles the Canvas generation, blob extraction, WASM fallbacks, ICO generation, and the bundling into JSZip (localized ZIP status/error strings).
+  - Yields to the event loop between heavy stages and shows a batch progress overlay (`#batchProgress`) while work is in flight.
   - Only auto-fills width/height inputs when they are empty (does not overwrite user-set limits on later uploads).
 - `public/jszip.min.js`: Locally hosted dependency for generating ZIP archives, served statically by Vite.
 - `tests/`: Node-runnable unit tests assembled by `run-tests.cjs` (`npm test`). The Deploy workflow (`.github/workflows/deploy.yml`) must run `npm test` before `vite build`.

@@ -9,7 +9,7 @@ A simple, fast, and 100% privacy-compliant image converter built entirely with V
   - **Maintain Aspect Ratio (Bounding Box):** Set a *Max Width* and *Max Height*. The image will scale down proportionally to fit inside these bounds without distortion.
   - **Exact Dimensions (Stretch):** Uncheck the aspect ratio box to force the image to exact *Width* and *Height* dimensions.
   - **Safe Limits:** To ensure optimal performance and compatibility, output dimensions are automatically clamped to a maximum of 4096px across all formats. ICO outputs are additionally scaled to fit within 256×256.
-- **Batch Processing:** Upload multiple images via Drag & Drop or file selection. Invalid or failed items appear in the results list with a remove action.
+- **Batch Processing:** Upload multiple images via Drag & Drop or file selection. Invalid or failed items appear in the results list with a remove action. While work runs, a progress overlay shows batch completion (e.g. `3 / 12`) and the pipeline yields to the UI between heavy steps to reduce freezes.
 - **Item Management:** Individually remove processed, invalid, or failed images from the list if you decide not to keep them.
 - **Bulk Download:** Download converted images individually or bundled as a ZIP file.
 - **Light & Dark Themes:** Toggle between light and dark Neobrutalist themes. The choice is stored in `localStorage` (and falls back to `prefers-color-scheme` on first visit).
