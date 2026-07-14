@@ -56,6 +56,12 @@ When interacting with this repository, AI agents must strictly adhere to the fol
 - `public/jszip.min.js`: Locally hosted dependency for generating ZIP archives, served statically by Vite.
 - `tests/`: Node-runnable unit tests assembled by `run-tests.cjs` (`npm test`). The Deploy workflow (`.github/workflows/deploy.yml`) must run `npm test` before `vite build`.
 
+## Testing
+
+- **Unit tests:** `npm test` runs Node.js tests in `tests/` via `run-tests.cjs`.
+- **E2E tests:** `npm run test:e2e` runs Playwright specs (`*.spec.js`) with an auto-started Vite dev server (`playwright.config.js`). Do not point Playwright at `tests/` — those are unit tests, not browser specs.
+- **Custom selects:** Native `<select>` elements are hidden and replaced by `setupCustomSelects()`. Each wrapper exposes `data-select-id` matching the original select's `id`, and options expose `data-value`. The trigger supports keyboard navigation (Enter/Space, Arrow keys, Escape) and ARIA attributes (`role="combobox"`, `aria-expanded`, etc.). E2E tests must interact with the custom UI, not `#formatSelect.selectOption()`.
+
 ## Modifying UI & i18n
 If adding new text to the UI:
 1. Add a `data-i18n="yourKey"` attribute to the HTML element (use `data-i18n-placeholder` for input placeholders).

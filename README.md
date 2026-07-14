@@ -43,19 +43,20 @@ This project uses Vite to bundle the WebAssembly encoders efficiently.
    ```
 2. The static files will be placed into the `dist/` folder. You can deploy this entire folder to any static hosting provider.
 
+### Tests
+```bash
+npm test          # Unit tests (Node.js)
+npm run test:e2e  # End-to-end tests (Playwright)
+npm run test:all  # Both test suites
+```
+Unit tests also run in the Deploy workflow before the production build. E2E tests run via the dedicated Test workflow (`.github/workflows/test.yml`) on push/PR.
+
 ### Automated Deployment (GitHub Pages)
 This repository includes a GitHub Action (`.github/workflows/deploy.yml`) that runs unit tests (`npm test`), builds with Vite, and deploys to GitHub Pages whenever changes are pushed to the `main` branch.
 To enable it:
 1. Go to your repository settings on GitHub.
 2. Navigate to **Pages** in the left sidebar.
 3. Under **Build and deployment -> Source**, select **GitHub Actions**.
-
-### Tests
-Unit tests (validation, encoding helpers, DOM utilities) run with:
-```bash
-npm test
-```
-These tests also run in the Deploy workflow before the production build.
 
 ### Optional Assets
 - Fonts: place `Inter-*.woff2` and `PlusJakartaSans-*.woff2` under `fonts/` (referenced as `./fonts/...` from `style.css`). Without them, the UI falls back to system fonts.

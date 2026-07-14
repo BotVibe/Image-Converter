@@ -274,35 +274,39 @@ function closeAllCustomSelects() {
         el.classList.remove('active');
         el.setAttribute('aria-expanded', 'false');
     });
+    document.querySelectorAll('.custom-option.highlighted').forEach(el => el.classList.remove('highlighted'));
 }
 
 function setupCustomSelects() {
     const selects = document.querySelectorAll('select');
     selects.forEach(select => {
-        // Skip if already processed
         if (select.parentElement.classList.contains('custom-select-wrapper')) return;
 
         const wrapper = document.createElement('div');
         wrapper.className = 'custom-select-wrapper';
+        if (select.id) wrapper.dataset.selectId = select.id;
         select.parentNode.insertBefore(wrapper, select);
         wrapper.appendChild(select);
         select.setAttribute('aria-hidden', 'true');
         select.tabIndex = -1;
 
+        const listboxId = select.id ? `${select.id}-listbox` : `custom-select-${Math.random().toString(36).slice(2)}-listbox`;
+        let highlightedIndex = select.selectedIndex;
+
         const trigger = document.createElement('div');
         trigger.className = 'custom-select-trigger';
         trigger.setAttribute('role', 'combobox');
         trigger.setAttribute('tabindex', '0');
-        trigger.setAttribute('aria-expanded', 'false');
         trigger.setAttribute('aria-haspopup', 'listbox');
+        trigger.setAttribute('aria-expanded', 'false');
+        trigger.setAttribute('aria-controls', listboxId);
         if (select.id) {
             const label = document.querySelector(`label[for="${select.id}"]`);
             if (label) trigger.setAttribute('aria-label', label.textContent);
-        } else if (select.id === 'langSelect' || select.closest('.lang-selector')) {
+        } else if (select.closest('.lang-selector')) {
             trigger.setAttribute('aria-label', 'Language');
         }
 
-        // Arrow SVG
         const arrowSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
 
         const updateTriggerText = () => {
@@ -317,98 +321,112 @@ function setupCustomSelects() {
 
         const optionsDiv = document.createElement('div');
         optionsDiv.className = 'custom-select-options';
+        optionsDiv.id = listboxId;
         optionsDiv.setAttribute('role', 'listbox');
+
+        const updateOptionStates = () => {
+            Array.from(optionsDiv.children).forEach((child, index) => {
+                child.classList.toggle('selected', index === select.selectedIndex);
+                child.classList.toggle('highlighted', index === highlightedIndex);
+                child.setAttribute('aria-selected', index === select.selectedIndex ? 'true' : 'false');
+            });
+        };
+
+        const closeSelect = () => {
+            optionsDiv.classList.remove('open');
+            trigger.classList.remove('active');
+            trigger.setAttribute('aria-expanded', 'false');
+            Array.from(optionsDiv.children).forEach(child => child.classList.remove('highlighted'));
+        };
+
+        const openSelect = () => {
+            closeAllCustomSelects();
+            highlightedIndex = select.selectedIndex;
+            optionsDiv.classList.add('open');
+            trigger.classList.add('active');
+            trigger.setAttribute('aria-expanded', 'true');
+            updateOptionStates();
+        };
 
         const selectOption = (index) => {
             select.selectedIndex = index;
-            select.dispatchEvent(new Event('change'));
-            Array.from(optionsDiv.children).forEach(c => c.classList.remove('selected'));
-            if (optionsDiv.children[index]) optionsDiv.children[index].classList.add('selected');
+            highlightedIndex = index;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            updateOptionStates();
             updateTriggerText();
-            closeAllCustomSelects();
+            closeSelect();
+            trigger.focus();
         };
 
         Array.from(select.options).forEach((option, index) => {
             const optDiv = document.createElement('div');
             optDiv.className = 'custom-option';
             optDiv.setAttribute('role', 'option');
-            if (index === select.selectedIndex) optDiv.classList.add('selected');
+            optDiv.dataset.value = option.value;
             optDiv.textContent = option.text;
 
-            optDiv.addEventListener('click', () => {
+            optDiv.addEventListener('click', (e) => {
+                e.stopPropagation();
                 selectOption(index);
             });
+
             optionsDiv.appendChild(optDiv);
         });
-
-        const openSelect = () => {
-            closeAllCustomSelects();
-            optionsDiv.classList.add('open');
-            trigger.classList.add('active');
-            trigger.setAttribute('aria-expanded', 'true');
-        };
+        updateOptionStates();
 
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
-            const isOpen = optionsDiv.classList.contains('open');
-            if (isOpen) {
-                closeAllCustomSelects();
-            } else {
-                openSelect();
-            }
+            if (optionsDiv.classList.contains('open')) closeSelect();
+            else openSelect();
         });
 
         trigger.addEventListener('keydown', (e) => {
+            const optionCount = select.options.length;
             const isOpen = optionsDiv.classList.contains('open');
-            if (e.key === 'Enter' || e.key === ' ') {
+
+            if (e.key === 'ArrowDown') {
                 e.preventDefault();
-                if (isOpen) {
-                    closeAllCustomSelects();
-                } else {
-                    openSelect();
-                }
-            } else if (e.key === 'Escape' && isOpen) {
-                e.preventDefault();
-                closeAllCustomSelects();
-            } else if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                if (!isOpen) {
-                    openSelect();
-                } else {
-                    const next = Math.min(select.selectedIndex + 1, select.options.length - 1);
-                    selectOption(next);
-                    openSelect();
-                }
+                if (!isOpen) openSelect();
+                else highlightedIndex = (highlightedIndex + 1) % optionCount;
+                updateOptionStates();
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
-                if (!isOpen) {
-                    openSelect();
-                } else {
-                    const prev = Math.max(select.selectedIndex - 1, 0);
-                    selectOption(prev);
-                    openSelect();
-                }
+                if (!isOpen) openSelect();
+                else highlightedIndex = (highlightedIndex - 1 + optionCount) % optionCount;
+                updateOptionStates();
             } else if (e.key === 'Home') {
                 e.preventDefault();
-                selectOption(0);
-                if (isOpen) openSelect();
+                if (!isOpen) openSelect();
+                highlightedIndex = 0;
+                updateOptionStates();
             } else if (e.key === 'End') {
                 e.preventDefault();
-                selectOption(select.options.length - 1);
-                if (isOpen) openSelect();
+                if (!isOpen) openSelect();
+                highlightedIndex = optionCount - 1;
+                updateOptionStates();
+            } else if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                if (isOpen) selectOption(highlightedIndex);
+                else openSelect();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                closeSelect();
+            } else if (e.key === 'Tab') {
+                closeSelect();
             }
         });
 
         wrapper.appendChild(trigger);
         wrapper.appendChild(optionsDiv);
 
-        // Listen to programmatic changes (e.g., from i18n initialization)
-        select.addEventListener('change', updateTriggerText);
+        select.addEventListener('change', () => {
+            highlightedIndex = select.selectedIndex;
+            updateTriggerText();
+            updateOptionStates();
+        });
     });
 
-    document.addEventListener('click', () => {
-        closeAllCustomSelects();
-    });
+    document.addEventListener('click', closeAllCustomSelects);
 }
 
 function applyLanguage() {

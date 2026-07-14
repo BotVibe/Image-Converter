@@ -1,68 +1,75 @@
 import { test, expect } from '@playwright/test';
 
+async function chooseCustomSelectOption(page, selectId, value) {
+    const wrapper = page.locator(`.custom-select-wrapper[data-select-id="${selectId}"]`);
+    await wrapper.locator('.custom-select-trigger').click();
+    await wrapper.locator(`.custom-option[data-value="${value}"]`).click();
+}
+
 test('App initializes and format selector works', async ({ page }) => {
-  await page.goto('http://localhost:5173');
+    await page.goto('/');
 
-  // Verify UI initialized
-  const title = await page.title();
-  expect(title).toBe('Image Converter');
+    expect(await page.title()).toBe('Image Converter');
 
-  // Test format dropdown changes limit enforcing
-  const formatSelect = page.locator('#formatSelect');
-  await formatSelect.selectOption({ value: 'image/png' }, { force: true });
+    await chooseCustomSelectOption(page, 'formatSelect', 'image/png');
 
-  const inputWidth = page.locator('#inputWidth');
-  await inputWidth.fill('5000');
-
-  // Depending on how clamping triggers (change/input), it should clamp to 4096.
-  // We trigger blur to simulate the change event.
-  await inputWidth.blur();
-  expect(await inputWidth.inputValue()).toBe('4096');
+    const inputWidth = page.locator('#inputWidth');
+    await inputWidth.fill('5000');
+    await inputWidth.blur();
+    expect(await inputWidth.inputValue()).toBe('4096');
 });
 
 test('Aspect ratio toggle works', async ({ page }) => {
-  await page.goto('http://localhost:5173');
+    await page.goto('/');
 
-  const toggle = page.locator('#keepAspectRatio');
-  const labelWidth = page.locator('#labelWidth');
+    const toggle = page.locator('#keepAspectRatio');
+    const labelWidth = page.locator('#labelWidth');
 
-  // By default, keepAspectRatio is checked, label is "Max Width (px):" or localized equivalent
-  expect(await labelWidth.innerText()).toContain('Max');
+    expect(await labelWidth.innerText()).toContain('Max');
 
-  // Uncheck it
-  await toggle.uncheck();
+    await toggle.uncheck();
 
-  // Label should change
-  expect(await labelWidth.innerText()).toContain('Exact');
+    expect(await labelWidth.innerText()).toContain('Exact');
 });
 
 test('Uploads an image, processes it, and clears', async ({ page }) => {
-  await page.goto('http://localhost:5173');
+    await page.goto('/');
 
-  // Create a dummy image file buffer
-  const buffer = Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-    'base64'
-  );
+    const buffer = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+        'base64'
+    );
 
-  const fileChooserPromise = page.waitForEvent('filechooser');
-  await page.locator('#dropZone').click();
-  const fileChooser = await fileChooserPromise;
-  await fileChooser.setFiles({
-    name: 'test.png',
-    mimeType: 'image/png',
-    buffer: buffer
-  });
+    const fileChooserPromise = page.waitForEvent('filechooser');
+    await page.locator('#dropZone').click();
+    const fileChooser = await fileChooserPromise;
+    await fileChooser.setFiles({
+        name: 'test.png',
+        mimeType: 'image/png',
+        buffer: buffer
+    });
 
-  // Wait for the result to appear
-  const resultsPanel = page.locator('#resultsPanel');
-  await expect(resultsPanel).not.toHaveClass(/hidden/);
+    const resultsPanel = page.locator('#resultsPanel');
+    await expect(resultsPanel).not.toHaveClass(/hidden/);
 
-  const item = page.locator('.result-item');
-  await expect(item).toBeVisible();
+    const item = page.locator('.result-item');
+    await expect(item).toBeVisible();
 
-  // Test clear button
-  await page.locator('#clearBtn').click();
-  await expect(resultsPanel).toHaveClass(/hidden/);
-  await expect(item).not.toBeVisible();
+    await page.locator('#clearBtn').click();
+    await expect(resultsPanel).toHaveClass(/hidden/);
+    await expect(item).not.toBeVisible();
+});
+
+test('Format selector supports keyboard navigation', async ({ page }) => {
+    await page.goto('/');
+
+    const trigger = page.locator('.custom-select-wrapper[data-select-id="formatSelect"] .custom-select-trigger');
+    await trigger.focus();
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+
+    await expect(page.locator('#qualitySlider')).toBeDisabled();
+    await expect(page.locator('#formatWarning')).not.toHaveClass(/hidden/);
 });
