@@ -54,7 +54,9 @@ const i18n = {
         previewOf: "Preview of",
         zipping: "Zipping...",
         zipError: "Failed to generate ZIP",
-        wasmEncoderUnavailable: "WebP/AVIF encoder unavailable in this browser"
+        wasmEncoderUnavailable: "WebP/AVIF encoder unavailable in this browser",
+        batchProcessing: "Processing images…",
+        batchProgressOf: "{current} / {total}"
     },
     de: {
         title: "Bild Konverter",
@@ -110,7 +112,9 @@ const i18n = {
         previewOf: "Vorschau von",
         zipping: "ZIP wird erstellt...",
         zipError: "ZIP konnte nicht erstellt werden",
-        wasmEncoderUnavailable: "WebP/AVIF-Encoder in diesem Browser nicht verfügbar"
+        wasmEncoderUnavailable: "WebP/AVIF-Encoder in diesem Browser nicht verfügbar",
+        batchProcessing: "Bilder werden verarbeitet…",
+        batchProgressOf: "{current} / {total}"
     },
     fr: {
         title: "Convertisseur d'Images",
@@ -166,7 +170,9 @@ const i18n = {
         previewOf: "Aperçu de",
         zipping: "Compression...",
         zipError: "Échec de la génération du ZIP",
-        wasmEncoderUnavailable: "Encodeur WebP/AVIF indisponible dans ce navigateur"
+        wasmEncoderUnavailable: "Encodeur WebP/AVIF indisponible dans ce navigateur",
+        batchProcessing: "Traitement des images…",
+        batchProgressOf: "{current} / {total}"
     },
     it: {
         title: "Convertitore di Immagini",
@@ -222,7 +228,9 @@ const i18n = {
         previewOf: "Anteprima di",
         zipping: "Creazione ZIP...",
         zipError: "Impossibile generare lo ZIP",
-        wasmEncoderUnavailable: "Encoder WebP/AVIF non disponibile in questo browser"
+        wasmEncoderUnavailable: "Encoder WebP/AVIF non disponibile in questo browser",
+        batchProcessing: "Elaborazione immagini…",
+        batchProgressOf: "{current} / {total}"
     }
 };
 
@@ -461,6 +469,9 @@ function applyLanguage() {
     if (dropZone && typeof dropZone._syncDropZoneLabel === 'function') {
         dropZone._syncDropZoneLabel();
     }
+
+    // Refresh batch progress labels if overlay is visible
+    updateBatchProgressUI();
 }
 
 import encodeAvif, { init as initAvif } from '@jsquash/avif/encode';
@@ -481,10 +492,100 @@ let processingSession = 0;
 // Memory / Hardcap constants
 const MAX_IMAGE_DIMENSION = 4096;
 
-// Concurrency control for image processing
-const MAX_CONCURRENT = 3;
+// Concurrency control for image processing (kept modest to reduce main-thread freezes)
+const MAX_CONCURRENT = 2;
 let activeProcessing = 0;
 const processingQueue = [];
+
+// Batch progress overlay state (completed advances per finished processImage call)
+const batchProgress = {
+    total: 0,
+    completed: 0
+};
+let batchEpoch = 0;
+
+function yieldToUI() {
+    // Let the browser paint loaders/progress between heavy sync work
+    return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function formatBatchProgressCount(current, total) {
+    const t = i18n[currentLang] || i18n.en;
+    return (t.batchProgressOf || '{current} / {total}')
+        .replace('{current}', String(current))
+        .replace('{total}', String(total));
+}
+
+function updateBatchProgressUI() {
+    const panel = document.getElementById('batchProgress');
+    const resultsPanel = document.getElementById('resultsPanel');
+    const countEl = document.getElementById('batchProgressCount');
+    const barEl = document.getElementById('batchProgressBar');
+    const labelEl = document.getElementById('batchProgressLabel');
+    if (!panel || !countEl || !barEl) return;
+
+    const remaining = batchProgress.total - batchProgress.completed;
+    const isBusy = remaining > 0 || activeProcessing > 0;
+
+    if (!isBusy || batchProgress.total === 0) {
+        panel.classList.add('hidden');
+        if (resultsPanel) resultsPanel.removeAttribute('aria-busy');
+        barEl.style.width = '0%';
+        barEl.setAttribute('aria-valuenow', '0');
+        return;
+    }
+
+    panel.classList.remove('hidden');
+    if (resultsPanel) {
+        resultsPanel.classList.remove('hidden');
+        resultsPanel.setAttribute('aria-busy', 'true');
+    }
+
+    const t = i18n[currentLang] || i18n.en;
+    if (labelEl) labelEl.textContent = t.batchProcessing;
+    countEl.textContent = formatBatchProgressCount(batchProgress.completed, batchProgress.total);
+    const pct = Math.min(100, Math.round((batchProgress.completed / batchProgress.total) * 100));
+    barEl.style.width = `${pct}%`;
+    barEl.setAttribute('aria-valuenow', String(pct));
+}
+
+function noteBatchItemQueued() {
+    batchProgress.total += 1;
+    updateBatchProgressUI();
+    return batchEpoch;
+}
+
+function noteBatchItemFinished(epoch) {
+    // Ignore completions from a cleared/previous batch
+    if (epoch !== batchEpoch) {
+        updateBatchProgressUI();
+        return;
+    }
+    batchProgress.completed += 1;
+    if (batchProgress.completed > batchProgress.total) {
+        batchProgress.completed = batchProgress.total;
+    }
+    updateBatchProgressUI();
+    if (batchProgress.completed >= batchProgress.total && activeProcessing <= 0) {
+        // Brief delay so 100% is visible, then hide
+        const hideEpoch = batchEpoch;
+        setTimeout(() => {
+            if (hideEpoch !== batchEpoch) return;
+            if (batchProgress.completed >= batchProgress.total && activeProcessing <= 0) {
+                batchProgress.total = 0;
+                batchProgress.completed = 0;
+                updateBatchProgressUI();
+            }
+        }, 350);
+    }
+}
+
+function resetBatchProgress() {
+    batchEpoch += 1;
+    batchProgress.total = 0;
+    batchProgress.completed = 0;
+    updateBatchProgressUI();
+}
 
 let wasmInitialized = false;
 let wasmInitFailed = false;
@@ -1428,7 +1529,9 @@ async function encodeImage(canvas, ctx, width, height, format, extension, qualit
         if (wasmInitFailed || !wasmInitialized) {
             throw new Error('AVIF WASM encoder is unavailable in this browser');
         }
+        await yieldToUI();
         const imageData = ctx.getImageData(0, 0, width, height);
+        await yieldToUI();
         const qualityValue = Math.round(quality * 100); // 1 to 100
         const buffer = await encodeAvif(imageData, { quality: qualityValue });
         blob = new Blob([buffer], { type: 'image/avif' });
@@ -1438,18 +1541,22 @@ async function encodeImage(canvas, ctx, width, height, format, extension, qualit
         if (wasmInitFailed || !wasmInitialized) {
             throw new Error('WebP WASM encoder is unavailable in this browser');
         }
+        await yieldToUI();
         const imageData = ctx.getImageData(0, 0, width, height);
+        await yieldToUI();
         const qualityValue = quality * 100;
         const buffer = await encodeWebp(imageData, { quality: qualityValue });
         blob = new Blob([buffer], { type: 'image/webp' });
         actualFormat = 'image/webp';
         actualExtension = 'webp';
     } else if (format === 'image/x-icon') {
+        await yieldToUI();
         blob = await generateICO(canvas);
         actualFormat = 'image/x-icon';
         actualExtension = 'ico';
     } else {
         // Use Native Browser Encoding
+        await yieldToUI();
         blob = await new Promise((resolve) => {
             canvas.toBlob(resolve, format, quality);
         });
@@ -1470,6 +1577,7 @@ async function encodeImage(canvas, ctx, width, height, format, extension, qualit
 async function processImage(file, existingId = null) {
     const id = existingId || (Date.now() + Math.random().toString(36).substr(2, 9));
     const session = processingSession;
+    const epoch = noteBatchItemQueued();
 
     if (!existingId) {
         originalFiles.set(id, file);
@@ -1489,19 +1597,23 @@ async function processImage(file, existingId = null) {
     // Get quality from slider
     const quality = parseInt(document.getElementById('qualitySlider').value, 10) / 100;
 
-    // Concurrency control: wait if we're already processing max concurrent images
-    if (activeProcessing >= MAX_CONCURRENT) {
-        await new Promise(resolve => processingQueue.push(resolve));
-    }
-    activeProcessing++;
-
+    let acquiredSlot = false;
     try {
+        // Concurrency control: wait if we're already processing max concurrent images
+        if (activeProcessing >= MAX_CONCURRENT) {
+            await new Promise(resolve => processingQueue.push(resolve));
+        }
+        activeProcessing++;
+        acquiredSlot = true;
+        updateBatchProgressUI();
+
         // Bail if cleared while waiting in the queue
         if (session !== processingSession) return;
 
         // Initialize WASM tools lazily
         await initWasmIfNeeded();
         if (session !== processingSession) return;
+        await yieldToUI();
 
         let img;
         if (imageCache.has(id)) {
@@ -1534,6 +1646,9 @@ async function processImage(file, existingId = null) {
             imageCache.set(id, img);
         }
 
+        await yieldToUI();
+        if (session !== processingSession) return;
+
         // Auto-fill dimension inputs only when empty (do not overwrite user-set limits)
         if (!existingId) {
             if (img.width > globalMaxWidth) globalMaxWidth = img.width;
@@ -1546,6 +1661,9 @@ async function processImage(file, existingId = null) {
         }
 
         const { width, height } = calculateDimensions(img.width, img.height);
+
+        await yieldToUI();
+        if (session !== processingSession) return;
 
         const canvas = document.createElement('canvas');
         canvas.width = width;
@@ -1562,6 +1680,9 @@ async function processImage(file, existingId = null) {
         // Draw image directly to preserve transparency (or over the white bg for jpeg)
         ctx.drawImage(img, 0, 0, width, height);
 
+        await yieldToUI();
+        if (session !== processingSession) return;
+
         // Generate a low-res preview to prevent UI freezing on huge images
         const previewCanvas = document.createElement('canvas');
         const prevCtx = previewCanvas.getContext('2d');
@@ -1575,6 +1696,9 @@ async function processImage(file, existingId = null) {
         const previewEl = document.getElementById(`preview-${id}`);
         if (previewEl) previewEl.src = previewUrl;
 
+        await yieldToUI();
+        if (session !== processingSession) return;
+
         const { blob, actualFormat, actualExtension } = await encodeImage(canvas, ctx, width, height, format, extension, quality);
         if (session !== processingSession) return;
 
@@ -1582,6 +1706,9 @@ async function processImage(file, existingId = null) {
             showError(id);
             return;
         }
+
+        await yieldToUI();
+        if (session !== processingSession) return;
 
         const safeBaseName = sanitizeFilename(file.name).replace(/\.[^/.]+$/, "");
         const newName = safeBaseName + `.${actualExtension}`;
@@ -1637,12 +1764,14 @@ async function processImage(file, existingId = null) {
         console.error("Error processing image:", e);
     } finally {
         // Release concurrency slot
-        activeProcessing--;
-        if (processingQueue.length > 0) {
-            // Unblock the next waiting processImage call
-            const nextResolve = processingQueue.shift();
-            nextResolve();
+        if (acquiredSlot) {
+            activeProcessing--;
+            if (processingQueue.length > 0) {
+                const nextResolve = processingQueue.shift();
+                nextResolve();
+            }
         }
+        noteBatchItemFinished(epoch);
     }
 }
 
@@ -1834,6 +1963,7 @@ function clearAll() {
     processingSession++;
     clearTimeout(recompressTimer);
     recompressTimer = null;
+    resetBatchProgress();
 
     // Revoke object URLs to prevent memory leaks
     const links = document.querySelectorAll('#resultsList a[download]');
@@ -1873,4 +2003,4 @@ document.addEventListener('DOMContentLoaded', () => {
     initUI();
 });
 
-export { calculateDimensions, encodeImage };
+export { calculateDimensions, encodeImage, formatBatchProgressCount, noteBatchItemQueued, noteBatchItemFinished, resetBatchProgress, batchProgress };

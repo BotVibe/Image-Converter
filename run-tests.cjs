@@ -55,6 +55,7 @@ class MockElement {
     setAttribute(name, value) { this._attrs[name] = value; }
     getAttribute(name) { return this._attrs[name]; }
     hasAttribute(name) { return Object.prototype.hasOwnProperty.call(this._attrs, name); }
+    removeAttribute(name) { delete this._attrs[name]; }
     querySelector(selector) {
         if (!selector) return null;
         if (selector.startsWith('.')) {

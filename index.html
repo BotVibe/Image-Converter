@@ -117,6 +117,16 @@
 
         <section class="results-panel hidden" id="resultsPanel">
             <h2 data-i18n="resultsTitle">Converted Images</h2>
+            <div id="batchProgress" class="batch-progress hidden" role="status" aria-live="polite">
+                <div class="batch-progress-header">
+                    <span class="batch-spinner" aria-hidden="true"></span>
+                    <span id="batchProgressLabel" data-i18n="batchProcessing">Processing images…</span>
+                </div>
+                <div class="batch-progress-track" aria-hidden="true">
+                    <div id="batchProgressBar" class="batch-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="width: 0%;"></div>
+                </div>
+                <div id="batchProgressCount" class="batch-progress-count">0 / 0</div>
+            </div>
             <div class="results-actions">
                 <button id="downloadZipBtn" class="btn primary" data-i18n="downloadZip">Download All as ZIP</button>
                 <button id="clearBtn" class="btn secondary" data-i18n="clearAll">Clear All</button>
