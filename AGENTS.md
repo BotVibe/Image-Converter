@@ -17,13 +17,24 @@ When interacting with this repository, AI agents must strictly adhere to the fol
 3. **Client-Side Image Processing & WASM Fallbacks:**
    - Image conversion primarily relies on the browser's native HTML5 Canvas API (`canvas.toBlob()`, `ctx.drawImage()`) for speed.
    - However, for environments that lack native encoding support (e.g., Safari/Firefox for AVIF), the tool intercepts the process and uses **`@jsquash` WebAssembly (WASM) encoders** as a robust polyfill.
+   - WASM init must use a single shared promise (`initWasmIfNeeded`) so concurrent encodes do not double-load modules. On init failure, mark failure explicitly and do not attempt WASM encode paths.
    - Always ensure that transparency is preserved during canvas operations. Do not manually fill the canvas background with solid colors before drawing the image.
+   - **Exception — JPEG:** JPEG has no alpha channel. When the target format is `image/jpeg`, fill the canvas with white (`#ffffff`) *before* `drawImage` so transparent pixels do not become black.
 
 ## Security
 
 1. **DOM Injection (XSS Prevention):**
    - Since users upload arbitrary files, the filename (`file.name`) can be an attack vector for Self-XSS.
    - Always use the provided `escapeHTML()` utility function in `app.js` before interpolating dynamic text into `innerHTML` templates.
+   - Use `sanitizeFilename()` for ZIP entry names to prevent zip-slip path traversal.
+
+## Memory & Concurrency
+
+- Revoke Blob URLs when download links are replaced (recompress) or removed (`removeResult` / `clearAll`).
+- Use a `processingSession` counter bumped on `clearAll` so in-flight `processImage` calls ignore stale completions.
+- Invalid uploads are tracked in `invalidFileIds` and must be skipped by `triggerRecompress`.
+- Debounce `triggerRecompress` (~150ms) so rapid slider/format changes do not stampede encoding.
+- Cap concurrent encodes with `MAX_CONCURRENT` (3). Hard-cap output dimensions at 4096px.
 
 ## Documentation Maintenance
 - The AI agent must automatically update `README.md` and `AGENTS.md` whenever significant architectural, feature, or structural changes are made to the codebase.
@@ -31,18 +42,20 @@ When interacting with this repository, AI agents must strictly adhere to the fol
 
 ## File Structure & Responsibilities
 
-- `index.html`: The semantic structure of the UI. Contains the `data-i18n` tags used for localization. The UI is structured sequentially: Settings Panel, Results Panel (Converted Images), Upload Panel, Info Panel (Privacy Explanation), and finally the Footer.
-- `style.css`: All styling using standard CSS variables (`:root`) for easy theming. The design language is a refined Neobrutalist dark theme (`#1e293b` background, `#334155` cards, dark `#0f172a` borders/shadows, and `#b6f228` primary accents) characterized by thick borders (`3px`), hard shadows (`4px 4px 0px`), physical click translate effects, and slightly rounded corners (`8px`). Native form elements must be custom-styled. It uses locally hosted Inter and Plus Jakarta Sans fonts.
+- `index.html`: The semantic structure of the UI. Contains the `data-i18n` / `data-i18n-placeholder` tags used for localization. The UI is structured sequentially: Settings Panel, Results Panel (Converted Images), Upload Panel, Info Panel (Privacy Explanation), and finally the Footer. Supported output formats in the format select: WebP, AVIF, PNG, JPEG, ICO.
+- `style.css`: All styling using standard CSS variables (`:root`) for easy theming. The design language is a refined Neobrutalist dark theme (`#1e293b` background, `#334155` cards, dark `#0f172a` borders/shadows, and `#b6f228` primary accents) characterized by thick borders (`3px`), hard shadows (`4px 4px 0px`), physical click translate effects, and slightly rounded corners (`8px`). A light theme is available via `data-theme="light"`. Native form elements must be custom-styled. It references locally hosted Inter and Plus Jakarta Sans fonts under `/fonts` (optional; browsers fall back to system fonts if files are absent). Prefer `:focus-visible` rings for accessibility.
 - `app.js`:
-  - Handles the UI logic, drag & drop, and the localization (i18n) dictionary.
+  - Handles the UI logic, drag & drop, theme toggle, custom accessible selects, and the localization (i18n) dictionary (English, German, French, Italian).
   - Enforces a hard maximum dimension limit of 4096px across all output formats (`enforceLimits()`) to ensure stability.
-  - Handles memory management gracefully (e.g., revoking Blob URLs when an individual image is removed from the results list).
+  - Handles memory management gracefully (e.g., revoking Blob URLs when an individual image is removed or recompressed).
   - Contains the core logic for calculating image dimensions (bounding box vs. exact stretch based on the aspect ratio toggle).
-  - Handles the Canvas generation, blob extraction, and the bundling into JSZip.
+  - Handles the Canvas generation, blob extraction, WASM fallbacks, ICO generation, and the bundling into JSZip.
+  - Only auto-fills width/height inputs when they are empty (does not overwrite user-set limits on later uploads).
 - `public/jszip.min.js`: Locally hosted dependency for generating ZIP archives, served statically by Vite.
+- `tests/`: Node-runnable unit tests assembled by `run-tests.cjs` (`npm test`).
 
 ## Modifying UI & i18n
 If adding new text to the UI:
-1. Add a `data-i18n="yourKey"` attribute to the HTML element.
+1. Add a `data-i18n="yourKey"` attribute to the HTML element (use `data-i18n-placeholder` for input placeholders).
 2. Update the `i18n` dictionary object in `app.js` for **all** supported languages (English, German, French, Italian).
 3. If labels need to change dynamically based on state (like the Max Width / Exact Width toggle), modify the `updateDimensionLabels()` function in `app.js`.

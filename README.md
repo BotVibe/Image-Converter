@@ -4,17 +4,19 @@ A simple, fast, and 100% privacy-compliant image converter built entirely with V
 
 ## Features
 
-- **Format Conversion:** Convert common image formats (JPEG, PNG, etc.) to **WebP**, **AVIF**, and **PNG** directly in the browser. Uses native Canvas APIs where supported, and falls back to WebAssembly polyfills (`@jsquash`) for guaranteed compatibility (e.g., AVIF on Safari).
+- **Format Conversion:** Convert common image formats (JPEG, PNG, WebP, AVIF, GIF, BMP, SVG) to **WebP**, **AVIF**, **PNG**, **JPEG**, or **ICO** directly in the browser. Uses native Canvas APIs where supported, and falls back to WebAssembly polyfills (`@jsquash`) for guaranteed compatibility (e.g., AVIF on Safari).
 - **Smart Resizing:**
   - **Maintain Aspect Ratio (Bounding Box):** Set a *Max Width* and *Max Height*. The image will scale down proportionally to fit inside these bounds without distortion.
   - **Exact Dimensions (Stretch):** Uncheck the aspect ratio box to force the image to exact *Width* and *Height* dimensions.
-  - **Safe Limits:** To ensure optimal performance and compatibility, output dimensions are automatically clamped to a maximum of 4096px across all formats.
-- **Batch Processing:** Upload multiple images via Drag & Drop or file selection.
+  - **Safe Limits:** To ensure optimal performance and compatibility, output dimensions are automatically clamped to a maximum of 4096px across all formats. ICO outputs are additionally scaled to fit within 256×256.
+- **Batch Processing:** Upload multiple images via Drag & Drop or file selection. Invalid files are flagged in the results list without blocking valid conversions.
 - **Item Management:** Individually remove processed images from the list if you decide not to keep them.
 - **Bulk Download:** Download converted images individually or bundled as a ZIP file.
-- **Refined Neobrutalism Design:** Features a refined Neobrutalist dark theme (using a softer slate `#1e293b` background, dark `#0f172a` hard shadows, and `#b6f228` accents) with fully styled native elements and physical click effects.
+- **Light & Dark Themes:** Toggle between light and dark Neobrutalist themes (honors `prefers-color-scheme` on first load).
+- **Refined Neobrutalism Design:** Features a refined Neobrutalist dark theme (using a softer slate `#1e293b` background, dark `#0f172a` hard shadows, and `#b6f228` accents) with fully styled native elements and physical click effects. Inter and Plus Jakarta Sans are referenced locally via `@font-face` (system fonts are used if the `.woff2` files are not present under `/fonts`).
 - **100% Privacy:** All processing happens client-side. The required `JSZip` library is hosted locally, ensuring absolutely zero external network requests or tracking. An explanation of how this works is explicitly shown in the UI.
 - **Multilingual UI:** Supports English, German, French, and Italian with auto-detection based on browser language.
+- **Input Validation:** Files are checked by extension and magic bytes (or SVG heuristics) before processing.
 
 > **Note on Documentation Maintenance:** The documentation for this project, including this `README.md` and the `AGENTS.md` guidelines, is automatically maintained and updated by AI agents as the project evolves to ensure it remains accurate and up-to-date with any significant architectural or feature changes.
 
@@ -47,10 +49,19 @@ To enable it:
 2. Navigate to **Pages** in the left sidebar.
 3. Under **Build and deployment -> Source**, select **GitHub Actions**.
 
-### Webflow & Transparency
-This tool was built with Webflow compatibility in mind. Conversions to PNG, WebP, and AVIF will preserve image transparency automatically.
+### Tests
+Unit tests (validation, encoding helpers, DOM utilities) run with:
+```bash
+npm test
+```
+
+### Transparency & Format Notes
+- Conversions to **PNG**, **WebP**, and **AVIF** preserve image transparency.
+- **JPEG** does not support transparency; transparent pixels are filled with white before encoding.
+- **GIF** animations are flattened to a single frame (first frame / browser decode result).
+- **ICO** outputs are capped at 256×256 while preserving aspect ratio.
 
 ## Browser Support
 - **Chrome / Edge / Opera:** Full support.
 - **Firefox:** Full support.
-- **Safari:** Full support (Using WebAssembly Polyfill for AVIF).
+- **Safari:** Full support (Using WebAssembly Polyfill for AVIF when native encoding is unavailable).

@@ -46,7 +46,12 @@ const i18n = {
         critChanceHint: "+1% Chance",
         critDamageHint: "+1 Dmg",
         maxLevel: "Max",
-        clickHint: "*Click*"
+        clickHint: "*Click*",
+        lightMode: "LIGHT MODE",
+        darkMode: "DARK MODE",
+        themeToggleLabel: "Toggle color theme",
+        autoPlaceholder: "Auto",
+        previewOf: "Preview of"
     },
     de: {
         title: "Bild Konverter",
@@ -94,7 +99,12 @@ const i18n = {
         critChanceHint: "+1% Chance",
         critDamageHint: "+1 Schaden",
         maxLevel: "Max",
-        clickHint: "*Klick*"
+        clickHint: "*Klick*",
+        lightMode: "HELLMODUS",
+        darkMode: "DUNKELMODUS",
+        themeToggleLabel: "Farbschema umschalten",
+        autoPlaceholder: "Auto",
+        previewOf: "Vorschau von"
     },
     fr: {
         title: "Convertisseur d'Images",
@@ -142,7 +152,12 @@ const i18n = {
         critChanceHint: "+1% Chance",
         critDamageHint: "+1 Dégât",
         maxLevel: "Max",
-        clickHint: "*Clic*"
+        clickHint: "*Clic*",
+        lightMode: "MODE CLAIR",
+        darkMode: "MODE SOMBRE",
+        themeToggleLabel: "Changer le thème de couleur",
+        autoPlaceholder: "Auto",
+        previewOf: "Aperçu de"
     },
     it: {
         title: "Convertitore di Immagini",
@@ -190,7 +205,12 @@ const i18n = {
         critChanceHint: "+1% Prob",
         critDamageHint: "+1 Danno",
         maxLevel: "Max",
-        clickHint: "*Clic*"
+        clickHint: "*Clic*",
+        lightMode: "MODALITÀ CHIARA",
+        darkMode: "MODALITÀ SCURA",
+        themeToggleLabel: "Cambia tema colore",
+        autoPlaceholder: "Auto",
+        previewOf: "Anteprima di"
     }
 };
 
@@ -213,6 +233,14 @@ function initI18n() {
     });
 }
 
+function closeAllCustomSelects() {
+    document.querySelectorAll('.custom-select-options').forEach(el => el.classList.remove('open'));
+    document.querySelectorAll('.custom-select-trigger').forEach(el => {
+        el.classList.remove('active');
+        el.setAttribute('aria-expanded', 'false');
+    });
+}
+
 function setupCustomSelects() {
     const selects = document.querySelectorAll('select');
     selects.forEach(select => {
@@ -223,11 +251,24 @@ function setupCustomSelects() {
         wrapper.className = 'custom-select-wrapper';
         select.parentNode.insertBefore(wrapper, select);
         wrapper.appendChild(select);
+        select.setAttribute('aria-hidden', 'true');
+        select.tabIndex = -1;
 
         const trigger = document.createElement('div');
         trigger.className = 'custom-select-trigger';
+        trigger.setAttribute('role', 'combobox');
+        trigger.setAttribute('tabindex', '0');
+        trigger.setAttribute('aria-expanded', 'false');
+        trigger.setAttribute('aria-haspopup', 'listbox');
+        if (select.id) {
+            const label = document.querySelector(`label[for="${select.id}"]`);
+            if (label) trigger.setAttribute('aria-label', label.textContent);
+        } else if (select.id === 'langSelect' || select.closest('.lang-selector')) {
+            trigger.setAttribute('aria-label', 'Language');
+        }
+
         // Arrow SVG
-        const arrowSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+        const arrowSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
 
         const updateTriggerText = () => {
             const selectedOption = select.options[select.selectedIndex];
@@ -241,38 +282,85 @@ function setupCustomSelects() {
 
         const optionsDiv = document.createElement('div');
         optionsDiv.className = 'custom-select-options';
+        optionsDiv.setAttribute('role', 'listbox');
+
+        const selectOption = (index) => {
+            select.selectedIndex = index;
+            select.dispatchEvent(new Event('change'));
+            Array.from(optionsDiv.children).forEach(c => c.classList.remove('selected'));
+            if (optionsDiv.children[index]) optionsDiv.children[index].classList.add('selected');
+            updateTriggerText();
+            closeAllCustomSelects();
+        };
 
         Array.from(select.options).forEach((option, index) => {
             const optDiv = document.createElement('div');
             optDiv.className = 'custom-option';
+            optDiv.setAttribute('role', 'option');
             if (index === select.selectedIndex) optDiv.classList.add('selected');
             optDiv.textContent = option.text;
 
             optDiv.addEventListener('click', () => {
-                select.selectedIndex = index;
-                select.dispatchEvent(new Event('change'));
-
-                // Update selected class
-                Array.from(optionsDiv.children).forEach(c => c.classList.remove('selected'));
-                optDiv.classList.add('selected');
-
-                updateTriggerText();
-                optionsDiv.classList.remove('open');
-                trigger.classList.remove('active');
+                selectOption(index);
             });
             optionsDiv.appendChild(optDiv);
         });
 
+        const openSelect = () => {
+            closeAllCustomSelects();
+            optionsDiv.classList.add('open');
+            trigger.classList.add('active');
+            trigger.setAttribute('aria-expanded', 'true');
+        };
+
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
             const isOpen = optionsDiv.classList.contains('open');
-            // Close all other selects
-            document.querySelectorAll('.custom-select-options').forEach(el => el.classList.remove('open'));
-            document.querySelectorAll('.custom-select-trigger').forEach(el => el.classList.remove('active'));
+            if (isOpen) {
+                closeAllCustomSelects();
+            } else {
+                openSelect();
+            }
+        });
 
-            if (!isOpen) {
-                optionsDiv.classList.add('open');
-                trigger.classList.add('active');
+        trigger.addEventListener('keydown', (e) => {
+            const isOpen = optionsDiv.classList.contains('open');
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                if (isOpen) {
+                    closeAllCustomSelects();
+                } else {
+                    openSelect();
+                }
+            } else if (e.key === 'Escape' && isOpen) {
+                e.preventDefault();
+                closeAllCustomSelects();
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (!isOpen) {
+                    openSelect();
+                } else {
+                    const next = Math.min(select.selectedIndex + 1, select.options.length - 1);
+                    selectOption(next);
+                    openSelect();
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (!isOpen) {
+                    openSelect();
+                } else {
+                    const prev = Math.max(select.selectedIndex - 1, 0);
+                    selectOption(prev);
+                    openSelect();
+                }
+            } else if (e.key === 'Home') {
+                e.preventDefault();
+                selectOption(0);
+                if (isOpen) openSelect();
+            } else if (e.key === 'End') {
+                e.preventDefault();
+                selectOption(select.options.length - 1);
+                if (isOpen) openSelect();
             }
         });
 
@@ -284,8 +372,7 @@ function setupCustomSelects() {
     });
 
     document.addEventListener('click', () => {
-        document.querySelectorAll('.custom-select-options').forEach(el => el.classList.remove('open'));
-        document.querySelectorAll('.custom-select-trigger').forEach(el => el.classList.remove('active'));
+        closeAllCustomSelects();
     });
 }
 
@@ -295,17 +382,26 @@ function applyLanguage() {
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
         if (i18n[currentLang][key]) {
-            if (el.tagName === 'INPUT' && el.type === 'placeholder') {
-                el.placeholder = i18n[currentLang][key];
-            } else {
-                el.textContent = i18n[currentLang][key];
-            }
+            el.textContent = i18n[currentLang][key];
+        }
+    });
+
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        if (i18n[currentLang][key]) {
+            el.placeholder = i18n[currentLang][key];
         }
     });
 
     // Explicitly update document title if it exists in i18n
     if (i18n[currentLang] && i18n[currentLang]['title']) {
         document.title = i18n[currentLang]['title'];
+    }
+
+    // Refresh theme toggle labels if present
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle && typeof themeToggle._updateThemeUI === 'function') {
+        themeToggle._updateThemeUI();
     }
 }
 
@@ -315,10 +411,14 @@ import encodeWebp, { init as initWebp } from '@jsquash/webp/encode';
 const convertedFiles = new Map(); // To store blobs for ZIP
 const originalFiles = new Map(); // To store original files mapping (id -> file)
 const imageCache = new Map(); // To store decoded images (id -> ImageBitmap/HTMLImageElement)
+const invalidFileIds = new Set(); // Track invalid uploads so we skip them on recompress
 
 // Track global maximum dimensions of uploaded images
 let globalMaxWidth = 0;
 let globalMaxHeight = 0;
+
+// Bumped on clearAll so in-flight processImage calls ignore stale completions
+let processingSession = 0;
 
 // Memory / Hardcap constants
 const MAX_IMAGE_DIMENSION = 4096;
@@ -329,6 +429,12 @@ let activeProcessing = 0;
 const processingQueue = [];
 
 let wasmInitialized = false;
+let wasmInitFailed = false;
+let wasmInitPromise = null;
+
+// Debounced recompress timer
+let recompressTimer = null;
+const RECOMPRESS_DEBOUNCE_MS = 150;
 
 // Check if browser natively supports the formats
 const nativeSupport = {
@@ -348,28 +454,49 @@ function checkNativeSupport() {
     }
 }
 
-async function initWasmIfNeeded() {
-    if (wasmInitialized) return;
-    try {
-        // Only load WASM if the browser lacks native support for either
-        if (!nativeSupport['image/webp'] || !nativeSupport['image/avif']) {
-            await Promise.all([initAvif(), initWebp()]);
+function initWasmIfNeeded() {
+    // Always reuse one promise so concurrent callers share init (and post-init results)
+    if (wasmInitPromise) return wasmInitPromise;
+
+    wasmInitPromise = (async () => {
+        try {
+            // Only load WASM if the browser lacks native support for either
+            if (!nativeSupport['image/webp'] || !nativeSupport['image/avif']) {
+                await Promise.all([initAvif(), initWebp()]);
+            }
+            wasmInitialized = true;
+            return true;
+        } catch (err) {
+            console.error("Failed to initialize WASM encoders:", err);
+            wasmInitFailed = true;
+            return false;
         }
-        wasmInitialized = true;
-    } catch (err) {
-        console.error("Failed to initialize WASM encoders:", err);
+    })();
+
+    return wasmInitPromise;
+}
+
+function revokeStatusBlobUrl(id) {
+    const statusContainer = document.getElementById(`status-${id}`);
+    if (!statusContainer) return;
+    const download = statusContainer.querySelector('a[download]');
+    if (download && download.href && download.href.startsWith('blob:')) {
+        URL.revokeObjectURL(download.href);
     }
 }
 
-const DELETE_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
+const DELETE_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
 
-// Auto-recompress trigger
+// Auto-recompress trigger (debounced); skips invalid uploads
 function triggerRecompress() {
-    if (originalFiles.size > 0) {
+    clearTimeout(recompressTimer);
+    recompressTimer = setTimeout(() => {
+        if (originalFiles.size === 0) return;
         for (const [id, file] of originalFiles.entries()) {
+            if (invalidFileIds.has(id)) continue;
             processImage(file, id);
         }
-    }
+    }, RECOMPRESS_DEBOUNCE_MS);
 }
 
 function setupFormLimits() {
@@ -378,8 +505,7 @@ function setupFormLimits() {
     const inputHeight = document.getElementById('inputHeight');
 
     const enforceLimits = () => {
-        // We no longer auto-set to MAX_IMAGE_DIMENSION if empty, to allow the actual image dimensions to persist
-        // We only enforce the clamp on max MAX_IMAGE_DIMENSION.
+        // Only clamp to MAX_IMAGE_DIMENSION; empty values are allowed (Auto)
         if (inputWidth.value && parseInt(inputWidth.value) > MAX_IMAGE_DIMENSION) {
             inputWidth.value = MAX_IMAGE_DIMENSION;
         }
@@ -388,16 +514,11 @@ function setupFormLimits() {
         }
     };
 
-    const clampLimits = () => {
-        if (inputWidth.value && parseInt(inputWidth.value) > MAX_IMAGE_DIMENSION) inputWidth.value = MAX_IMAGE_DIMENSION;
-        if (inputHeight.value && parseInt(inputHeight.value) > MAX_IMAGE_DIMENSION) inputHeight.value = MAX_IMAGE_DIMENSION;
-    };
-
     formatSelect.addEventListener('change', enforceLimits);
     inputWidth.addEventListener('change', enforceLimits);
     inputHeight.addEventListener('change', enforceLimits);
-    inputWidth.addEventListener('input', clampLimits);
-    inputHeight.addEventListener('input', clampLimits);
+    inputWidth.addEventListener('input', enforceLimits);
+    inputHeight.addEventListener('input', enforceLimits);
 }
 
 function setupQualityAndFormat() {
@@ -484,7 +605,21 @@ function setupDragAndDrop() {
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
 
-    dropZone.addEventListener('click', () => fileInput.click());
+    const syncDropZoneLabel = () => {
+        dropZone.setAttribute('aria-label', i18n[currentLang].dropText);
+    };
+    syncDropZoneLabel();
+
+    const openFilePicker = () => fileInput.click();
+
+    dropZone.addEventListener('click', openFilePicker);
+
+    dropZone.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openFilePicker();
+        }
+    });
 
     dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -511,6 +646,9 @@ function setupDragAndDrop() {
         // Reset so the same file can be selected again
         fileInput.value = '';
     });
+
+    // Keep aria-label in sync when language changes
+    dropZone._syncDropZoneLabel = syncDropZoneLabel;
 }
 
 function setupActionButtons() {
@@ -555,20 +693,26 @@ function initTheme() {
 
     const updateToggleUI = () => {
         const isLight = root.getAttribute('data-theme') === 'light';
+        const t = i18n[currentLang] || i18n.en;
         if (isLight) {
-            themeText.textContent = 'LIGHT MODE';
+            themeText.textContent = t.lightMode;
             sunIcon.style.display = 'block';
             moonIcon.style.display = 'none';
         } else {
-            themeText.textContent = 'DARK MODE';
+            themeText.textContent = t.darkMode;
             sunIcon.style.display = 'none';
             moonIcon.style.display = 'block';
         }
+        themeToggle.setAttribute('aria-pressed', isLight ? 'true' : 'false');
+        themeToggle.setAttribute('aria-label', t.themeToggleLabel);
     };
+
+    // Expose so applyLanguage can refresh labels
+    themeToggle._updateThemeUI = updateToggleUI;
 
     updateToggleUI();
 
-    themeToggle.addEventListener('click', () => {
+    const toggleTheme = () => {
         const isLight = root.getAttribute('data-theme') === 'light';
         if (isLight) {
             root.removeAttribute('data-theme'); // default to dark
@@ -576,6 +720,14 @@ function initTheme() {
             root.setAttribute('data-theme', 'light');
         }
         updateToggleUI();
+    };
+
+    themeToggle.addEventListener('click', toggleTheme);
+    themeToggle.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleTheme();
+        }
     });
 }
 
@@ -1095,6 +1247,7 @@ async function handleFiles(files) {
 function handleInvalidFile(file) {
     const id = Date.now() + Math.random().toString(36).substr(2, 9);
     originalFiles.set(id, file); // Store so we can track and remove it
+    invalidFileIds.add(id); // Skip on triggerRecompress
 
     // Use the existing createResultItem to build the UI element
     const li = createResultItem(id, file);
@@ -1103,7 +1256,7 @@ function handleInvalidFile(file) {
     const statusContainer = document.getElementById(`status-${id}`);
     statusContainer.innerHTML = `
         <div class="action-buttons-row">
-            <button class="btn delete-btn" title="${i18n[currentLang].remove}" onclick="removeResult('${id}')">
+            <button class="btn delete-btn" title="${i18n[currentLang].remove}" aria-label="${i18n[currentLang].remove}" onclick="removeResult('${id}')">
                 ${DELETE_ICON_SVG}
             </button>
         </div>
@@ -1181,14 +1334,7 @@ function createResultItem(id, originalFile) {
     li.id = `item-${id}`;
 
     const safeName = escapeHTML(originalFile.name);
-    // Determine preview text based on language, fallback to English
-    const previewTextMap = {
-        en: 'Preview of',
-        de: 'Vorschau von',
-        fr: 'Aperçu de',
-        it: 'Anteprima di'
-    };
-    const previewPrefix = previewTextMap[currentLang] || previewTextMap.en;
+    const previewPrefix = (i18n[currentLang] && i18n[currentLang].previewOf) || i18n.en.previewOf;
 
     li.innerHTML = `
         <div class="result-info">
@@ -1198,7 +1344,7 @@ function createResultItem(id, originalFile) {
                 <span class="result-meta" id="meta-${id}">...</span>
             </div>
         </div>
-        <div class="result-status" id="status-${id}">
+        <div class="result-status" id="status-${id}" aria-live="polite">
             <span class="status-processing" data-i18n="processing">${i18n[currentLang].processing}</span>
         </div>
     `;
@@ -1214,6 +1360,9 @@ async function encodeImage(canvas, ctx, width, height, format, extension, qualit
 
     // If format is WebP or AVIF AND browser lacks native support, use WASM Encoder!
     if (format === 'image/avif' && !nativeSupport['image/avif']) {
+        if (wasmInitFailed || !wasmInitialized) {
+            throw new Error('AVIF WASM encoder is unavailable in this browser');
+        }
         const imageData = ctx.getImageData(0, 0, width, height);
         const qualityValue = Math.round(quality * 100); // 1 to 100
         const buffer = await encodeAvif(imageData, { quality: qualityValue });
@@ -1221,6 +1370,9 @@ async function encodeImage(canvas, ctx, width, height, format, extension, qualit
         actualFormat = 'image/avif';
         actualExtension = 'avif';
     } else if (format === 'image/webp' && !nativeSupport['image/webp']) {
+        if (wasmInitFailed || !wasmInitialized) {
+            throw new Error('WebP WASM encoder is unavailable in this browser');
+        }
         const imageData = ctx.getImageData(0, 0, width, height);
         const qualityValue = quality * 100;
         const buffer = await encodeWebp(imageData, { quality: qualityValue });
@@ -1252,13 +1404,18 @@ async function encodeImage(canvas, ctx, width, height, format, extension, qualit
 
 async function processImage(file, existingId = null) {
     const id = existingId || (Date.now() + Math.random().toString(36).substr(2, 9));
+    const session = processingSession;
 
     if (!existingId) {
         originalFiles.set(id, file);
         createResultItem(id, file);
     } else {
+        // Revoke previous download URL before replacing status with "Processing..."
+        revokeStatusBlobUrl(id);
         const statusContainer = document.getElementById(`status-${id}`);
-        statusContainer.innerHTML = `<span class="status-processing" data-i18n="processing">${i18n[currentLang].processing}</span>`;
+        if (statusContainer) {
+            statusContainer.innerHTML = `<span class="status-processing" data-i18n="processing">${i18n[currentLang].processing}</span>`;
+        }
     }
 
     const format = document.getElementById('formatSelect').value;
@@ -1274,8 +1431,12 @@ async function processImage(file, existingId = null) {
     activeProcessing++;
 
     try {
+        // Bail if cleared while waiting in the queue
+        if (session !== processingSession) return;
+
         // Initialize WASM tools lazily
         await initWasmIfNeeded();
+        if (session !== processingSession) return;
 
         let img;
         if (imageCache.has(id)) {
@@ -1284,6 +1445,7 @@ async function processImage(file, existingId = null) {
             // SVGs cannot be decoded directly from a File object by createImageBitmap in some browsers.
             if (file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')) {
                 const rawImg = await loadImage(file);
+                if (session !== processingSession) return;
                 if (window.createImageBitmap) {
                     img = await createImageBitmap(rawImg);
                 } else {
@@ -1296,25 +1458,26 @@ async function processImage(file, existingId = null) {
                     } catch (e) {
                         // Fallback in case createImageBitmap fails directly on the file
                         const rawImg = await loadImage(file);
+                        if (session !== processingSession) return;
                         img = await createImageBitmap(rawImg);
                     }
                 } else {
                     img = await loadImage(file);
                 }
             }
+            if (session !== processingSession) return;
             imageCache.set(id, img);
         }
 
-        // Update global max dimensions if this is a new image
-        let dimsUpdated = false;
+        // Auto-fill dimension inputs only when empty (do not overwrite user-set limits)
         if (!existingId) {
-            if (img.width > globalMaxWidth) { globalMaxWidth = img.width; dimsUpdated = true; }
-            if (img.height > globalMaxHeight) { globalMaxHeight = img.height; dimsUpdated = true; }
+            if (img.width > globalMaxWidth) globalMaxWidth = img.width;
+            if (img.height > globalMaxHeight) globalMaxHeight = img.height;
 
-            if (dimsUpdated) {
-                document.getElementById('inputWidth').value = globalMaxWidth;
-                document.getElementById('inputHeight').value = globalMaxHeight;
-            }
+            const wInput = document.getElementById('inputWidth');
+            const hInput = document.getElementById('inputHeight');
+            if (!wInput.value && globalMaxWidth) wInput.value = globalMaxWidth;
+            if (!hInput.value && globalMaxHeight) hInput.value = globalMaxHeight;
         }
 
         const { width, height } = calculateDimensions(img.width, img.height);
@@ -1344,9 +1507,11 @@ async function processImage(file, existingId = null) {
         prevCtx.drawImage(img, 0, 0, previewCanvas.width, previewCanvas.height);
 
         const previewUrl = previewCanvas.toDataURL('image/png', 0.5);
-        document.getElementById(`preview-${id}`).src = previewUrl;
+        const previewEl = document.getElementById(`preview-${id}`);
+        if (previewEl) previewEl.src = previewUrl;
 
         const { blob, actualFormat, actualExtension } = await encodeImage(canvas, ctx, width, height, format, extension, quality);
+        if (session !== processingSession) return;
 
         if (!blob) {
             showError(id);
@@ -1371,14 +1536,21 @@ async function processImage(file, existingId = null) {
             compSizeStr = (blob.size / 1024).toFixed(1) + ' KB';
         }
 
-        document.getElementById(`meta-${id}`).innerHTML = `
-            ${width}x${height}px •
-            <span data-i18n="original">${i18n[currentLang].original}</span>: ${origSizeMB} MB
-            &rarr;
-            <span data-i18n="compressed">${i18n[currentLang].compressed}</span>: ${compSizeStr}
-        `;
+        const metaEl = document.getElementById(`meta-${id}`);
+        if (metaEl) {
+            metaEl.innerHTML = `
+                ${width}x${height}px •
+                <span data-i18n="original">${i18n[currentLang].original}</span>: ${origSizeMB} MB
+                &rarr;
+                <span data-i18n="compressed">${i18n[currentLang].compressed}</span>: ${compSizeStr}
+            `;
+        }
 
         const statusContainer = document.getElementById(`status-${id}`);
+        if (!statusContainer) {
+            URL.revokeObjectURL(blobUrl);
+            return;
+        }
 
         // Display normal success state regardless of whether WASM polyfill was used
         statusContainer.innerHTML = `
@@ -1386,14 +1558,16 @@ async function processImage(file, existingId = null) {
                 <a href="${blobUrl}" download="${escapeHTML(newName)}" class="btn primary" style="text-decoration:none;">
                     <span data-i18n="download">${i18n[currentLang].download}</span>
                 </a>
-                <button class="btn delete-btn" title="${i18n[currentLang].remove}" onclick="removeResult('${id}')">
+                <button class="btn delete-btn" title="${i18n[currentLang].remove}" aria-label="${i18n[currentLang].remove}" onclick="removeResult('${id}')">
                     ${DELETE_ICON_SVG}
                 </button>
             </div>
         `;
 
     } catch (e) {
-        showError(id);
+        if (session === processingSession) {
+            showError(id);
+        }
         console.error("Error processing image:", e);
     } finally {
         // Release concurrency slot
@@ -1529,6 +1703,7 @@ function loadImage(file) {
 
 function showError(id) {
     const statusContainer = document.getElementById(`status-${id}`);
+    if (!statusContainer) return;
     statusContainer.innerHTML = `<span class="status-error" data-i18n="error">${i18n[currentLang].error}</span>`;
 }
 
@@ -1539,16 +1714,17 @@ window.removeResult = function(id) {
 
     // Revoke object URLs to prevent memory leaks
     const preview = li.querySelector('.result-preview');
-    if (preview && preview.src.startsWith('blob:')) {
+    if (preview && preview.src && preview.src.startsWith('blob:')) {
         URL.revokeObjectURL(preview.src);
     }
     const download = li.querySelector('a[download]');
-    if (download && download.href.startsWith('blob:')) {
+    if (download && download.href && download.href.startsWith('blob:')) {
         URL.revokeObjectURL(download.href);
     }
 
     li.remove();
     originalFiles.delete(id);
+    invalidFileIds.delete(id);
 
     // Release cached image
     if (imageCache.has(id)) {
@@ -1559,7 +1735,9 @@ window.removeResult = function(id) {
 
     convertedFiles.delete(id);
 
-    if (convertedFiles.size === 0) {
+    // Hide panel only when the results list is empty (includes invalid-only rows)
+    const resultsList = document.getElementById('resultsList');
+    if (!resultsList.children.length) {
         document.getElementById('resultsPanel').classList.add('hidden');
         // Reset global dimensions when all items are removed
         globalMaxWidth = 0;
@@ -1570,6 +1748,11 @@ window.removeResult = function(id) {
 };
 
 function clearAll() {
+    // Invalidate in-flight processImage completions
+    processingSession++;
+    clearTimeout(recompressTimer);
+    recompressTimer = null;
+
     // Revoke object URLs to prevent memory leaks
     const links = document.querySelectorAll('#resultsList a[download]');
     links.forEach(link => {
@@ -1589,6 +1772,7 @@ function clearAll() {
     document.getElementById('resultsPanel').classList.add('hidden');
     convertedFiles.clear();
     originalFiles.clear();
+    invalidFileIds.clear();
 
     // Reset global max dimensions
     globalMaxWidth = 0;

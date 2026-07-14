@@ -15,6 +15,7 @@ async function testHandleInvalidFile() {
     assert(originalFiles.size === 1, "originalFiles map should contain 1 item");
     const id1 = Array.from(originalFiles.keys())[0];
     assert(originalFiles.get(id1) === mockFile1, "The correct file should be stored in originalFiles");
+    assert(invalidFileIds.has(id1), "Invalid file id should be tracked in invalidFileIds");
 
     // Verify DOM element was created
     const listItem1 = document.getElementById(`item-${id1}`);
@@ -24,6 +25,7 @@ async function testHandleInvalidFile() {
     // Verify error status and i18n
     const statusContainer1 = document.getElementById(`status-${id1}`);
     assert(statusContainer1.innerHTML.includes('delete-btn'), "Status container should include a delete button");
+    assert(statusContainer1.innerHTML.includes('aria-label'), "Delete button should include aria-label");
 
     const metaContainer1 = document.getElementById(`meta-${id1}`);
     assert(metaContainer1.innerHTML.includes(i18n['en'].invalidFileType), "Meta container should display the correct i18n error message");
@@ -34,6 +36,7 @@ async function testHandleInvalidFile() {
 
     assert(originalFiles.size === 2, "originalFiles map should contain 2 items now");
     const id2 = Array.from(originalFiles.keys())[1];
+    assert(invalidFileIds.has(id2), "Second invalid file should also be tracked");
 
     const metaContainer2 = document.getElementById(`meta-${id2}`);
     assert(metaContainer2.innerHTML.includes(i18n['en'].invalidFileType), "Meta container should display the error message even for empty files");
@@ -44,10 +47,16 @@ async function testHandleInvalidFile() {
 
     assert(originalFiles.size === 1, "originalFiles map should reduce to 1 item after removing");
     assert(!originalFiles.has(id1), "The removed file should no longer be in the map");
+    assert(!invalidFileIds.has(id1), "Removed invalid id should leave invalidFileIds");
 
     // Test Case 4: Non-existent id for removeResult
     window.removeResult('non-existent-id');
     assert(originalFiles.size === 1, "originalFiles map should not change when removing a non-existent id");
+
+    // Cleanup
+    window.removeResult(id2);
+    invalidFileIds.clear();
+    originalFiles.clear();
 
     console.log("✅ All handleInvalidFile tests passed!");
 }
