@@ -94,9 +94,10 @@ header {
     display: flex;
     align-items: center;
     gap: 1rem;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     max-width: 100%;
     min-width: 0;
+    flex-shrink: 1;
 }
 
 /* Theme Toggle Neobrutalism UI — width grows with label text */
@@ -106,7 +107,7 @@ header {
     align-items: stretch;
     width: auto;
     min-width: 9.5rem;
-    max-width: min(18rem, 100%);
+    max-width: min(14rem, 55vw);
     height: 48px;
     border: var(--border-width) solid var(--border-color);
     border-radius: 40px;
@@ -116,7 +117,7 @@ header {
     position: relative;
     user-select: none;
     overflow: hidden;
-    flex-shrink: 1;
+    flex: 0 1 auto;
 }
 
 .theme-toggle:active {
@@ -194,9 +195,9 @@ header h1 {
 
 .lang-selector {
     width: auto;
-    min-width: 7.5rem;
-    flex: 0 1 10rem;
-    max-width: 100%;
+    min-width: 7rem;
+    flex: 0 0 auto;
+    max-width: 10rem;
 }
 
 select {
