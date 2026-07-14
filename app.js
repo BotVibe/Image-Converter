@@ -51,7 +51,10 @@ const i18n = {
         darkMode: "DARK MODE",
         themeToggleLabel: "Toggle color theme",
         autoPlaceholder: "Auto",
-        previewOf: "Preview of"
+        previewOf: "Preview of",
+        zipping: "Zipping...",
+        zipError: "Failed to generate ZIP",
+        wasmEncoderUnavailable: "WebP/AVIF encoder unavailable in this browser"
     },
     de: {
         title: "Bild Konverter",
@@ -104,7 +107,10 @@ const i18n = {
         darkMode: "DUNKELMODUS",
         themeToggleLabel: "Farbschema umschalten",
         autoPlaceholder: "Auto",
-        previewOf: "Vorschau von"
+        previewOf: "Vorschau von",
+        zipping: "ZIP wird erstellt...",
+        zipError: "ZIP konnte nicht erstellt werden",
+        wasmEncoderUnavailable: "WebP/AVIF-Encoder in diesem Browser nicht verfügbar"
     },
     fr: {
         title: "Convertisseur d'Images",
@@ -157,7 +163,10 @@ const i18n = {
         darkMode: "MODE SOMBRE",
         themeToggleLabel: "Changer le thème de couleur",
         autoPlaceholder: "Auto",
-        previewOf: "Aperçu de"
+        previewOf: "Aperçu de",
+        zipping: "Compression...",
+        zipError: "Échec de la génération du ZIP",
+        wasmEncoderUnavailable: "Encodeur WebP/AVIF indisponible dans ce navigateur"
     },
     it: {
         title: "Convertitore di Immagini",
@@ -210,26 +219,52 @@ const i18n = {
         darkMode: "MODALITÀ SCURA",
         themeToggleLabel: "Cambia tema colore",
         autoPlaceholder: "Auto",
-        previewOf: "Anteprima di"
+        previewOf: "Anteprima di",
+        zipping: "Creazione ZIP...",
+        zipError: "Impossibile generare lo ZIP",
+        wasmEncoderUnavailable: "Encoder WebP/AVIF non disponibile in questo browser"
     }
 };
+
+const STORAGE_THEME_KEY = 'imgConverter.theme';
+const STORAGE_LANG_KEY = 'imgConverter.lang';
+
+function safeLocalStorageGet(key) {
+    try {
+        return localStorage.getItem(key);
+    } catch (e) {
+        return null;
+    }
+}
+
+function safeLocalStorageSet(key, value) {
+    try {
+        localStorage.setItem(key, value);
+    } catch (e) {
+        // Ignore quota / private-mode failures — prefs are best-effort
+    }
+}
 
 let currentLang = 'en';
 
 function initI18n() {
-    // Detect browser language
-    const browserLang = navigator.language.split('-')[0];
-    if (['en', 'de', 'fr', 'it'].includes(browserLang)) {
-        currentLang = browserLang;
+    // Prefer stored language, then browser language
+    const savedLang = safeLocalStorageGet(STORAGE_LANG_KEY);
+    if (savedLang && ['en', 'de', 'fr', 'it'].includes(savedLang)) {
+        currentLang = savedLang;
+    } else {
+        const browserLang = navigator.language.split('-')[0];
+        if (['en', 'de', 'fr', 'it'].includes(browserLang)) {
+            currentLang = browserLang;
+        }
     }
     document.getElementById('langSelect').value = currentLang;
     applyLanguage();
 
     document.getElementById('langSelect').addEventListener('change', (e) => {
         currentLang = e.target.value;
+        safeLocalStorageSet(STORAGE_LANG_KEY, currentLang);
         applyLanguage();
-        // Dispath change on the select to update the custom UI trigger text if it was updated programmatically elsewhere
-        // No wait, the event listener handles setting the currentLang and applying. The UI updates natively.
     });
 }
 
@@ -691,8 +726,13 @@ function initTheme() {
     const sunIcon = document.getElementById('sunIcon');
     const moonIcon = document.getElementById('moonIcon');
 
-    // Default is light unless user strictly prefers dark
-    if (!prefersDark) {
+    // Prefer stored theme, then system preference (default light unless user prefers dark)
+    const savedTheme = safeLocalStorageGet(STORAGE_THEME_KEY);
+    if (savedTheme === 'light') {
+        root.setAttribute('data-theme', 'light');
+    } else if (savedTheme === 'dark') {
+        root.removeAttribute('data-theme');
+    } else if (!prefersDark) {
         root.setAttribute('data-theme', 'light');
     }
 
@@ -721,8 +761,10 @@ function initTheme() {
         const isLight = root.getAttribute('data-theme') === 'light';
         if (isLight) {
             root.removeAttribute('data-theme'); // default to dark
+            safeLocalStorageSet(STORAGE_THEME_KEY, 'dark');
         } else {
             root.setAttribute('data-theme', 'light');
+            safeLocalStorageSet(STORAGE_THEME_KEY, 'light');
         }
         updateToggleUI();
     };
@@ -1098,7 +1140,7 @@ async function downloadZip() {
 
     const zipBtn = document.getElementById('downloadZipBtn');
     const originalText = zipBtn.textContent;
-    zipBtn.textContent = 'Zipping...';
+    zipBtn.textContent = i18n[currentLang].zipping;
     zipBtn.disabled = true;
 
     try {
@@ -1146,7 +1188,7 @@ async function downloadZip() {
         URL.revokeObjectURL(url);
     } catch (e) {
         console.error("Error generating ZIP:", e);
-        alert("Failed to generate ZIP");
+        alert(i18n[currentLang].zipError);
     } finally {
         zipBtn.textContent = originalText;
         zipBtn.disabled = false;
@@ -1571,7 +1613,8 @@ async function processImage(file, existingId = null) {
 
     } catch (e) {
         if (session === processingSession) {
-            showError(id);
+            const isWasmError = e && e.message && /WASM encoder/i.test(e.message);
+            showError(id, isWasmError ? 'wasmEncoderUnavailable' : 'error');
         }
         console.error("Error processing image:", e);
     } finally {
@@ -1706,10 +1749,26 @@ function loadImage(file) {
     });
 }
 
-function showError(id) {
+function showError(id, messageKey = 'error') {
     const statusContainer = document.getElementById(`status-${id}`);
     if (!statusContainer) return;
-    statusContainer.innerHTML = `<span class="status-error" data-i18n="error">${i18n[currentLang].error}</span>`;
+
+    const t = i18n[currentLang] || i18n.en;
+    const message = t[messageKey] || t.error;
+
+    statusContainer.innerHTML = `
+        <div class="action-buttons-row">
+            <span class="status-error" data-i18n="${messageKey}">${message}</span>
+            <button class="btn delete-btn" title="${t.remove}" aria-label="${t.remove}" onclick="removeResult('${id}')">
+                ${DELETE_ICON_SVG}
+            </button>
+        </div>
+    `;
+
+    const metaContainer = document.getElementById(`meta-${id}`);
+    if (metaContainer) {
+        metaContainer.innerHTML = `<span class="status-error" style="color: #ff4b4b;">${message}</span>`;
+    }
 }
 
 

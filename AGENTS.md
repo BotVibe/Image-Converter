@@ -8,6 +8,7 @@ When interacting with this repository, AI agents must strictly adhere to the fol
    - The primary goal of this tool is absolute privacy. No user data, telemetry, or requests should ever leave the browser.
    - **DO NOT** add external CDNs (e.g., `<script src="https://unpkg.com/...">`).
    - If a third-party library is required (e.g., `jszip.min.js`), it **must** be downloaded and stored locally in the repository.
+   - Theme and language preferences may be stored in `localStorage` only (`imgConverter.theme`, `imgConverter.lang`). Never send prefs or image data to a server.
 
 2. **Vanilla JS with Minimal Build Tools:**
    - The project uses pure HTML, CSS, and Vanilla JavaScript for the UI.
@@ -17,7 +18,7 @@ When interacting with this repository, AI agents must strictly adhere to the fol
 3. **Client-Side Image Processing & WASM Fallbacks:**
    - Image conversion primarily relies on the browser's native HTML5 Canvas API (`canvas.toBlob()`, `ctx.drawImage()`) for speed.
    - However, for environments that lack native encoding support (e.g., Safari/Firefox for AVIF), the tool intercepts the process and uses **`@jsquash` WebAssembly (WASM) encoders** as a robust polyfill.
-   - WASM init must use a single shared promise (`initWasmIfNeeded`) so concurrent encodes do not double-load modules. On init failure, mark failure explicitly and do not attempt WASM encode paths.
+   - WASM init must use a single shared promise (`initWasmIfNeeded`) so concurrent encodes do not double-load modules. On init failure, mark failure explicitly and do not attempt WASM encode paths; surface `wasmEncoderUnavailable` via `showError()`.
    - Always ensure that transparency is preserved during canvas operations. Do not manually fill the canvas background with solid colors before drawing the image.
    - **Exception — JPEG:** JPEG has no alpha channel. When the target format is `image/jpeg`, fill the canvas with white (`#ffffff`) *before* `drawImage` so transparent pixels do not become black.
 
@@ -35,6 +36,7 @@ When interacting with this repository, AI agents must strictly adhere to the fol
 - Invalid uploads are tracked in `invalidFileIds` and must be skipped by `triggerRecompress`.
 - Debounce `triggerRecompress` (~150ms) so rapid slider/format changes do not stampede encoding.
 - Cap concurrent encodes with `MAX_CONCURRENT` (3). Hard-cap output dimensions at 4096px.
+- Failed conversions (`showError`) must include a remove button, same as invalid-file rows.
 
 ## Documentation Maintenance
 - The AI agent must automatically update `README.md` and `AGENTS.md` whenever significant architectural, feature, or structural changes are made to the codebase.
@@ -42,17 +44,17 @@ When interacting with this repository, AI agents must strictly adhere to the fol
 
 ## File Structure & Responsibilities
 
-- `index.html`: The semantic structure of the UI. Contains the `data-i18n` / `data-i18n-placeholder` tags used for localization. The UI is structured sequentially: Settings Panel, Results Panel (Converted Images), Upload Panel, Info Panel (Privacy Explanation), and finally the Footer. Supported output formats in the format select: WebP, AVIF, PNG, JPEG, ICO.
-- `style.css`: All styling using standard CSS variables (`:root`) for easy theming. The design language is a refined Neobrutalist dark theme (`#1e293b` background, `#334155` cards, dark `#0f172a` borders/shadows, and `#b6f228` primary accents) characterized by thick borders (`3px`), hard shadows (`4px 4px 0px`), physical click translate effects, and slightly rounded corners (`8px`). A light theme is available via `data-theme="light"`. Native form elements must be custom-styled. It references locally hosted Inter and Plus Jakarta Sans fonts under `/fonts` (optional; browsers fall back to system fonts if files are absent). Prefer `:focus-visible` rings for accessibility.
+- `index.html`: The semantic structure of the UI. Contains the `data-i18n` / `data-i18n-placeholder` tags used for localization. The UI is structured sequentially: Settings Panel, Results Panel (Converted Images), Upload Panel, Info Panel (Privacy Explanation), and finally the Footer (includes an optional Cookie-Clicker-style GitHub easter egg). Supported output formats in the format select: WebP, AVIF, PNG, JPEG, ICO.
+- `style.css`: All styling using standard CSS variables (`:root`) for easy theming. The design language is a refined Neobrutalist dark theme (`#1e293b` background, `#334155` cards, dark `#0f172a` borders/shadows, and `#b6f228` primary accents) characterized by thick borders (`3px`), hard shadows (`4px 4px 0px`), physical click translate effects, and slightly rounded corners (`8px`). A light theme is available via `data-theme="light"`. Native form elements must be custom-styled. Font `@font-face` URLs must be **relative** (`./fonts/...`) so GitHub Pages project sites resolve them correctly. Font files under `fonts/` are optional. Prefer `:focus-visible` rings for accessibility.
 - `app.js`:
-  - Handles the UI logic, drag & drop, theme toggle, custom accessible selects, and the localization (i18n) dictionary (English, German, French, Italian).
+  - Handles the UI logic, drag & drop, theme toggle (persisted), custom accessible selects, and the localization (i18n) dictionary (English, German, French, Italian; language persisted).
   - Enforces a hard maximum dimension limit of 4096px across all output formats (`enforceLimits()`) to ensure stability.
   - Handles memory management gracefully (e.g., revoking Blob URLs when an individual image is removed or recompressed).
   - Contains the core logic for calculating image dimensions (bounding box vs. exact stretch based on the aspect ratio toggle).
-  - Handles the Canvas generation, blob extraction, WASM fallbacks, ICO generation, and the bundling into JSZip.
+  - Handles the Canvas generation, blob extraction, WASM fallbacks, ICO generation, and the bundling into JSZip (localized ZIP status/error strings).
   - Only auto-fills width/height inputs when they are empty (does not overwrite user-set limits on later uploads).
 - `public/jszip.min.js`: Locally hosted dependency for generating ZIP archives, served statically by Vite.
-- `tests/`: Node-runnable unit tests assembled by `run-tests.cjs` (`npm test`).
+- `tests/`: Node-runnable unit tests assembled by `run-tests.cjs` (`npm test`). The Deploy workflow (`.github/workflows/deploy.yml`) must run `npm test` before `vite build`.
 
 ## Modifying UI & i18n
 If adding new text to the UI:
