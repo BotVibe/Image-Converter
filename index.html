@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="title">Image Converter</title>
-    <meta name="description" content="A simple, fast, and 100% privacy-compliant image converter. Convert images to WebP, AVIF, and PNG locally in your browser.">
-    <meta name="keywords" content="image converter, privacy image converter, webp, avif, png, local image processing">
+    <meta name="description" content="A simple, fast, and 100% privacy-compliant image converter. Convert images to WebP, AVIF, PNG, JPEG, and ICO locally in your browser.">
+    <meta name="keywords" content="image converter, privacy image converter, webp, avif, png, jpeg, ico, local image processing">
     <link rel="canonical" href="https://botvibe.github.io/Image-Converter/">
 
     <!-- Favicon (Inline SVG for zero external requests) -->
@@ -15,14 +15,14 @@
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://botvibe.github.io/Image-Converter/">
     <meta property="og:title" content="Privacy-First Image Converter">
-    <meta property="og:description" content="Convert images to WebP, AVIF, and PNG directly in your browser. 100% private, no uploads.">
+    <meta property="og:description" content="Convert images to WebP, AVIF, PNG, JPEG, and ICO directly in your browser. 100% private, no uploads.">
     <meta property="og:image" content="https://botvibe.github.io/Image-Converter/og-image.jpg">
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="https://botvibe.github.io/Image-Converter/">
     <meta property="twitter:title" content="Privacy-First Image Converter">
-    <meta property="twitter:description" content="Convert images to WebP, AVIF, and PNG directly in your browser. 100% private, no uploads.">
+    <meta property="twitter:description" content="Convert images to WebP, AVIF, PNG, JPEG, and ICO directly in your browser. 100% private, no uploads.">
     <meta property="twitter:image" content="https://botvibe.github.io/Image-Converter/og-image.jpg">
 
     <link rel="stylesheet" href="style.css">
@@ -49,19 +49,20 @@
     <header>
         <h1 data-i18n="title">Image Converter</h1>
         <div class="header-actions">
-            <div class="theme-toggle" id="themeToggle" role="button" tabindex="0" aria-label="Toggle Theme">
+            <div class="theme-toggle" id="themeToggle" role="button" tabindex="0" aria-label="Toggle color theme" aria-pressed="false">
                 <div class="theme-toggle-inner">
                     <span class="theme-text" id="themeText">LIGHT MODE</span>
                     <div class="theme-knob">
                         <!-- Sun Icon for Light Mode -->
-                        <svg id="sunIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                        <svg id="sunIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
                         <!-- Moon Icon for Dark Mode -->
-                        <svg id="moonIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                        <svg id="moonIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
                     </div>
                 </div>
             </div>
 
             <div class="lang-selector">
+                <label for="langSelect" class="visually-hidden">Language</label>
                 <select id="langSelect">
                     <option value="en">English</option>
                     <option value="de">Deutsch</option>
@@ -90,11 +91,11 @@
             <div class="dimensions-group">
                 <div class="form-group">
                     <label for="inputWidth" id="labelWidth" data-i18n="maxWidth">Max Width (px):</label>
-                    <input type="number" id="inputWidth" min="1" placeholder="Auto">
+                    <input type="number" id="inputWidth" min="1" placeholder="Auto" data-i18n-placeholder="autoPlaceholder">
                 </div>
                 <div class="form-group">
                     <label for="inputHeight" id="labelHeight" data-i18n="maxHeight">Max Height (px):</label>
-                    <input type="number" id="inputHeight" min="1" placeholder="Auto">
+                    <input type="number" id="inputHeight" min="1" placeholder="Auto" data-i18n-placeholder="autoPlaceholder">
                 </div>
             </div>
 
@@ -124,9 +125,9 @@
         </section>
 
         <section class="upload-panel">
-            <div id="dropZone" class="drop-zone">
+            <div id="dropZone" class="drop-zone" role="button" tabindex="0" aria-label="Upload images. Drag and drop or press Enter to select files.">
                 <p data-i18n="dropText">Drag & Drop images here or click to select</p>
-                <input type="file" id="fileInput" multiple accept="image/*" class="hidden-input">
+                <input type="file" id="fileInput" multiple accept="image/*" class="hidden-input" tabindex="-1" aria-hidden="true">
             </div>
         </section>
 

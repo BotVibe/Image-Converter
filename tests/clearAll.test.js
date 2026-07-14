@@ -33,6 +33,8 @@ async function runClearAllTests() {
     // Set up global variables to verify they get reset
     convertedFiles.set('1', {}); convertedFiles.set('2', {}); // simulate 2 items
     originalFiles.set("file1", {});
+    invalidFileIds.add('bad-1');
+    const sessionBefore = processingSession;
     globalMaxWidth = 800;
     globalMaxHeight = 600;
 
@@ -78,6 +80,8 @@ async function runClearAllTests() {
         // 3. Verify global state resets
         assert(convertedFiles.size === 0, "convertedFiles should be empty");
         assert(originalFiles.size === 0, "originalFiles should be empty");
+        assert(invalidFileIds.size === 0, "invalidFileIds should be empty");
+        assert(processingSession === sessionBefore + 1, "processingSession should bump on clearAll");
         assert(globalMaxWidth === 0, "globalMaxWidth should be 0");
         assert(globalMaxHeight === 0, "globalMaxHeight should be 0");
 

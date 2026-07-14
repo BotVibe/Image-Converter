@@ -31,8 +31,19 @@ class MockElement {
         this.checked = false;
         this.innerHTML = "";
         this.style = {};
+        this._children = [];
+        this.parentElement = null;
+        this.className = '';
+        this._attrs = {};
     }
     appendChild(child) {
+        if (child && typeof child === 'object') {
+            child.parentElement = this;
+            this._children.push(child);
+            if (child.id) {
+                elements[child.id] = child;
+            }
+        }
         if (typeof child === 'string') {
             this.innerHTML += child
                 .replace(/&/g, "&amp;")
@@ -41,13 +52,53 @@ class MockElement {
         }
     }
     addEventListener() {}
+    setAttribute(name, value) { this._attrs[name] = value; }
+    getAttribute(name) { return this._attrs[name]; }
+    hasAttribute(name) { return Object.prototype.hasOwnProperty.call(this._attrs, name); }
+    querySelector(selector) {
+        if (!selector) return null;
+        if (selector.startsWith('.')) {
+            const cls = selector.slice(1);
+            return this._children.find(c => (c.className || '').split(/\\s+/).includes(cls)) || null;
+        }
+        if (selector.startsWith('#')) {
+            const id = selector.slice(1);
+            return this._children.find(c => c.id === id) || null;
+        }
+        if (selector.includes('[')) {
+            // Only match explicit tag+attribute pairs like a[download]
+            const tagMatch = selector.match(/^([a-zA-Z0-9]+)?\\[/);
+            const tag = tagMatch && tagMatch[1] ? tagMatch[1].toUpperCase() : null;
+            return this._children.find(c => {
+                if (tag && c.tagName !== tag) return false;
+                if (selector.includes('[download]')) {
+                    return !!c.download || (c.getAttribute && c.getAttribute('download') != null);
+                }
+                return false;
+            }) || null;
+        }
+        return this._children.find(c => c.tagName === (selector || '').toUpperCase()) || null;
+    }
+    querySelectorAll(selector) {
+        const one = this.querySelector(selector);
+        return one ? [one] : [];
+    }
     classList = {
         add: () => {},
         remove: () => {},
         contains: () => false
     };
-    querySelector() { return null; }
-    remove() { }
+    get children() { return this._children; }
+    remove() {
+        if (this.parentElement && this.parentElement._children) {
+            const idx = this.parentElement._children.indexOf(this);
+            if (idx >= 0) this.parentElement._children.splice(idx, 1);
+        }
+        if (this.id && elements[this.id] === this) {
+            delete elements[this.id];
+        }
+    }
+    insertAdjacentHTML() {}
     get textContent() { return this._textContent; }
     set textContent(v) { this._textContent = v; }
 }
@@ -62,14 +113,21 @@ const mockDocument = {
         return elements[id];
     },
     createElement: (tag) => {
-        return new MockElement(tag);
+        const el = new MockElement(tag);
+        el.tagName = (tag || '').toUpperCase();
+        return el;
     },
     createTextNode: (text) => {
         return text;
     },
-    querySelectorAll: () => [],
+    querySelectorAll: (selector) => {
+        if (selector === '[data-i18n]') return [];
+        if (selector === '[data-i18n-placeholder]') return [];
+        return [];
+    },
+    querySelector: () => null,
     addEventListener: () => {},
-    documentElement: { lang: 'en' },
+    documentElement: { lang: 'en', setAttribute() {}, getAttribute() { return null; }, removeAttribute() {} },
     body: new MockElement('body'),
     title: ''
 };
