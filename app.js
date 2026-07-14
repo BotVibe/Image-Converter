@@ -403,6 +403,11 @@ function applyLanguage() {
     if (themeToggle && typeof themeToggle._updateThemeUI === 'function') {
         themeToggle._updateThemeUI();
     }
+
+    const dropZone = document.getElementById('dropZone');
+    if (dropZone && typeof dropZone._syncDropZoneLabel === 'function') {
+        dropZone._syncDropZoneLabel();
+    }
 }
 
 import encodeAvif, { init as initAvif } from '@jsquash/avif/encode';
