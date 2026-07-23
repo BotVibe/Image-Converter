@@ -82,9 +82,9 @@ test('Favicon Pack option opens square crop modal', async ({ page }) => {
     await expect(page.locator('#inputWidth')).toBeDisabled();
     await expect(page.locator('#formatWarning')).not.toHaveClass(/hidden/);
 
-    // 2x2 PNG
+    // Known-good 1x1 PNG (same fixture as the upload test)
     const buffer = Buffer.from(
-        'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEklEQVR42mP8z8BQz0AEYBxVSF+FAP1kC8fV9p8+AAAAAElFTkSuQmCC',
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
         'base64'
     );
 

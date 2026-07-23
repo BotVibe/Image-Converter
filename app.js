@@ -2163,7 +2163,11 @@ async function processImage(file, existingId = null) {
                         // Fallback in case createImageBitmap fails directly on the file
                         const rawImg = await loadImage(file);
                         if (session !== processingSession) return;
-                        img = await createImageBitmap(rawImg);
+                        try {
+                            img = await createImageBitmap(rawImg);
+                        } catch (e2) {
+                            img = rawImg;
+                        }
                     }
                 } else {
                     img = await loadImage(file);
