@@ -73,3 +73,38 @@ test('Format selector supports keyboard navigation', async ({ page }) => {
     await expect(page.locator('#qualitySlider')).toBeDisabled();
     await expect(page.locator('#formatWarning')).not.toHaveClass(/hidden/);
 });
+
+test('Favicon Pack option opens square crop modal', async ({ page }) => {
+    await page.goto('/');
+
+    await chooseCustomSelectOption(page, 'formatSelect', 'favicon-pack');
+    await expect(page.locator('#qualitySlider')).toBeDisabled();
+    await expect(page.locator('#inputWidth')).toBeDisabled();
+    await expect(page.locator('#formatWarning')).not.toHaveClass(/hidden/);
+
+    // Known-good 1x1 PNG (same fixture as the upload test)
+    const buffer = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+        'base64'
+    );
+
+    const fileChooserPromise = page.waitForEvent('filechooser');
+    await page.locator('#dropZone').click();
+    const fileChooser = await fileChooserPromise;
+    await fileChooser.setFiles({
+        name: 'icon.png',
+        mimeType: 'image/png',
+        buffer
+    });
+
+    const cropModal = page.locator('#cropModal');
+    await expect(cropModal).toBeVisible();
+    await expect(page.locator('#cropSelection')).toBeVisible();
+
+    await page.locator('#cropConfirmBtn').click();
+    await expect(cropModal).toBeHidden();
+
+    const item = page.locator('.result-item');
+    await expect(item).toBeVisible();
+    await expect(page.locator('[data-i18n="cropEdit"]').first()).toBeVisible({ timeout: 15000 });
+});

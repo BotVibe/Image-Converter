@@ -56,7 +56,14 @@ const i18n = {
         zipError: "Failed to generate ZIP",
         wasmEncoderUnavailable: "WebP/AVIF encoder unavailable in this browser",
         batchProcessing: "Processing images…",
-        batchProgressOf: "{current} / {total}"
+        batchProgressOf: "{current} / {total}",
+        cropTitle: "Select favicon area",
+        cropHint: "Drag the square to move it. Use the corners to resize.",
+        cropCancel: "Cancel",
+        cropConfirm: "Use crop",
+        cropEdit: "Crop",
+        faviconPackHint: "Favicon packs use fixed icon sizes. Choose a square crop for each image.",
+        faviconPackMeta: "Favicon Pack"
     },
     de: {
         title: "Bild Konverter",
@@ -114,7 +121,14 @@ const i18n = {
         zipError: "ZIP konnte nicht erstellt werden",
         wasmEncoderUnavailable: "WebP/AVIF-Encoder in diesem Browser nicht verfügbar",
         batchProcessing: "Bilder werden verarbeitet…",
-        batchProgressOf: "{current} / {total}"
+        batchProgressOf: "{current} / {total}",
+        cropTitle: "Favicon-Bereich wählen",
+        cropHint: "Quadrat verschieben oder an den Ecken skalieren.",
+        cropCancel: "Abbrechen",
+        cropConfirm: "Zuschneiden",
+        cropEdit: "Zuschneiden",
+        faviconPackHint: "Favicon-Pakete nutzen feste Icon-Größen. Wähle pro Bild einen quadratischen Ausschnitt.",
+        faviconPackMeta: "Favicon-Paket"
     },
     fr: {
         title: "Convertisseur d'Images",
@@ -172,7 +186,14 @@ const i18n = {
         zipError: "Échec de la génération du ZIP",
         wasmEncoderUnavailable: "Encodeur WebP/AVIF indisponible dans ce navigateur",
         batchProcessing: "Traitement des images…",
-        batchProgressOf: "{current} / {total}"
+        batchProgressOf: "{current} / {total}",
+        cropTitle: "Sélectionner la zone du favicon",
+        cropHint: "Faites glisser le carré pour le déplacer. Utilisez les coins pour redimensionner.",
+        cropCancel: "Annuler",
+        cropConfirm: "Utiliser",
+        cropEdit: "Recadrer",
+        faviconPackHint: "Les packs favicon utilisent des tailles fixes. Choisissez un recadrage carré pour chaque image.",
+        faviconPackMeta: "Pack Favicon"
     },
     it: {
         title: "Convertitore di Immagini",
@@ -230,7 +251,14 @@ const i18n = {
         zipError: "Impossibile generare lo ZIP",
         wasmEncoderUnavailable: "Encoder WebP/AVIF non disponibile in questo browser",
         batchProcessing: "Elaborazione immagini…",
-        batchProgressOf: "{current} / {total}"
+        batchProgressOf: "{current} / {total}",
+        cropTitle: "Seleziona area favicon",
+        cropHint: "Trascina il quadrato per spostarlo. Usa gli angoli per ridimensionare.",
+        cropCancel: "Annulla",
+        cropConfirm: "Usa ritaglio",
+        cropEdit: "Ritaglia",
+        faviconPackHint: "I pacchetti favicon usano dimensioni fisse. Scegli un ritaglio quadrato per ogni immagine.",
+        faviconPackMeta: "Pacchetto Favicon"
     }
 };
 
@@ -481,6 +509,27 @@ const convertedFiles = new Map(); // To store blobs for ZIP
 const originalFiles = new Map(); // To store original files mapping (id -> file)
 const imageCache = new Map(); // To store decoded images (id -> ImageBitmap/HTMLImageElement)
 const invalidFileIds = new Set(); // Track invalid uploads so we skip them on recompress
+const cropRegions = new Map(); // id -> { sx, sy, size } for favicon-pack square crops
+
+const FAVICON_PACK_FORMAT = 'favicon-pack';
+const FAVICON_ICO_SIZES = [16, 32, 48, 256];
+const FAVICON_PNG_SPECS = [
+    { size: 16, name: 'favicon-16x16.png' },
+    { size: 32, name: 'favicon-32x32.png' },
+    { size: 180, name: 'apple-touch-icon.png' },
+    { size: 192, name: 'android-chrome-192x192.png' },
+    { size: 512, name: 'android-chrome-512x512.png' }
+];
+
+// Serialize crop modals so concurrent favicon-pack jobs wait their turn
+let cropModalChain = Promise.resolve();
+let cropModalResolver = null;
+let cropModalActiveId = null;
+let cropDragState = null;
+let cropWorking = { sx: 0, sy: 0, size: 1 };
+let cropNatural = { width: 1, height: 1 };
+let cropDisplay = { left: 0, top: 0, width: 1, height: 1, scale: 1 };
+let cropPreviousFocus = null;
 
 // Track global maximum dimensions of uploaded images
 let globalMaxWidth = 0;
@@ -741,18 +790,43 @@ function setupQualityAndFormat() {
         const format = formatSelect.value;
         const formGroup = document.getElementById('qualityLabel').parentElement;
         const formatWarning = document.getElementById('formatWarning');
+        const dimensionsGroup = document.getElementById('dimensionsGroup');
+        const aspectRatioGroup = document.getElementById('aspectRatioGroup');
+        const isFaviconPack = format === FAVICON_PACK_FORMAT;
+        const noQuality = format === 'image/png' || format === 'image/x-icon' || isFaviconPack;
 
-        if (format === 'image/png' || format === 'image/x-icon') {
+        if (noQuality) {
             qualitySlider.disabled = true;
             formGroup.style.opacity = '0.5';
             formGroup.style.pointerEvents = 'none';
             formatWarning.classList.remove('hidden');
-            formatWarning.textContent = i18n[currentLang]['qualityNotSupported'];
+            formatWarning.setAttribute(
+                'data-i18n',
+                isFaviconPack ? 'faviconPackHint' : 'qualityNotSupported'
+            );
+            formatWarning.textContent = isFaviconPack
+                ? i18n[currentLang].faviconPackHint
+                : i18n[currentLang].qualityNotSupported;
         } else {
             qualitySlider.disabled = false;
             formGroup.style.opacity = '1';
             formGroup.style.pointerEvents = 'auto';
             formatWarning.classList.add('hidden');
+            formatWarning.setAttribute('data-i18n', 'qualityNotSupported');
+        }
+
+        if (dimensionsGroup) {
+            dimensionsGroup.classList.toggle('settings-disabled', isFaviconPack);
+        }
+        if (aspectRatioGroup) {
+            aspectRatioGroup.classList.toggle('settings-disabled', isFaviconPack);
+            document.getElementById('keepAspectRatio').disabled = isFaviconPack;
+        }
+        if (document.getElementById('inputWidth')) {
+            document.getElementById('inputWidth').disabled = isFaviconPack;
+        }
+        if (document.getElementById('inputHeight')) {
+            document.getElementById('inputHeight').disabled = isFaviconPack;
         }
     };
 
@@ -908,6 +982,7 @@ function initUI() {
     setupDragAndDrop();
     setupActionButtons();
     setupAspectRatioToggle();
+    setupCropModal();
     initFooterGame();
 }
 
@@ -1267,6 +1342,22 @@ async function downloadZip() {
         const usedNames = new Set();
 
         convertedFiles.forEach(file => {
+            if (file.isFaviconPack && Array.isArray(file.packFiles) && file.packFiles.length) {
+                let folder = sanitizeFilename(file.folderName || file.name.replace(/\.zip$/i, '') || 'favicon');
+                let finalFolder = folder;
+                let counter = 1;
+                while (usedNames.has(finalFolder + '/')) {
+                    finalFolder = `${folder} (${counter})`;
+                    counter++;
+                }
+                usedNames.add(finalFolder + '/');
+                file.packFiles.forEach((entry) => {
+                    const entryName = sanitizeFilename(entry.name);
+                    zip.file(`${finalFolder}/${entryName}`, entry.blob);
+                });
+                return;
+            }
+
             let safeName = sanitizeFilename(file.name);
 
             // Handle filename collisions
@@ -1437,6 +1528,440 @@ function handleInvalidFile(file) {
     preview.style.display = 'none'; // Hide broken image icon
 }
 
+function defaultSquareCrop(imgWidth, imgHeight) {
+    const width = Math.max(1, Math.floor(imgWidth) || 1);
+    const height = Math.max(1, Math.floor(imgHeight) || 1);
+    const size = Math.max(1, Math.min(width, height));
+    const sx = Math.floor((width - size) / 2);
+    const sy = Math.floor((height - size) / 2);
+    return { sx, sy, size };
+}
+
+function clampSquareCrop(crop, imgWidth, imgHeight) {
+    const width = Math.max(1, Math.floor(imgWidth) || 1);
+    const height = Math.max(1, Math.floor(imgHeight) || 1);
+    let size = Math.max(1, Math.round(crop.size || 1));
+    size = Math.min(size, width, height);
+    let sx = Math.round(crop.sx || 0);
+    let sy = Math.round(crop.sy || 0);
+    sx = Math.max(0, Math.min(sx, width - size));
+    sy = Math.max(0, Math.min(sy, height - size));
+    return { sx, sy, size };
+}
+
+function buildSiteWebManifest() {
+    return JSON.stringify({
+        name: 'App',
+        short_name: 'App',
+        icons: [
+            { src: 'android-chrome-192x192.png', sizes: '192x192', type: 'image/png' },
+            { src: 'android-chrome-512x512.png', sizes: '512x512', type: 'image/png' }
+        ],
+        theme_color: '#ffffff',
+        background_color: '#ffffff',
+        display: 'standalone'
+    }, null, 2);
+}
+
+function canvasToPngBlob(canvas) {
+    return new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('PNG encode failed'));
+        }, 'image/png');
+    });
+}
+
+function createCroppedSquareCanvas(img, crop, targetSize) {
+    const { sx, sy, size } = clampSquareCrop(crop, img.width, img.height);
+    const canvas = document.createElement('canvas');
+    canvas.width = targetSize;
+    canvas.height = targetSize;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, sx, sy, size, size, 0, 0, targetSize, targetSize);
+    return canvas;
+}
+
+function encodeIcoBmpPayload(canvas) {
+    let w = canvas.width;
+    let h = canvas.height;
+    if (w > 256 || h > 256) {
+        const ratio = Math.min(256 / w, 256 / h);
+        w = Math.max(1, Math.round(w * ratio));
+        h = Math.max(1, Math.round(h * ratio));
+    }
+
+    const tmpCanvas = document.createElement('canvas');
+    tmpCanvas.width = w;
+    tmpCanvas.height = h;
+    const tmpCtx = tmpCanvas.getContext('2d');
+    tmpCtx.drawImage(canvas, 0, 0, w, h);
+    const data = tmpCtx.getImageData(0, 0, w, h).data;
+
+    const bytesPerPixel = 4;
+    const xorMaskSize = w * h * bytesPerPixel;
+    const rowBytes = Math.ceil(w / 32) * 4;
+    const andMaskSize = rowBytes * h;
+    const infoHeaderSize = 40;
+    const imageSize = infoHeaderSize + xorMaskSize + andMaskSize;
+    const buffer = new ArrayBuffer(imageSize);
+    const view = new DataView(buffer);
+
+    view.setUint32(0, infoHeaderSize, true);
+    view.setInt32(4, w, true);
+    view.setInt32(8, h * 2, true);
+    view.setUint16(12, 1, true);
+    view.setUint16(14, 32, true);
+    view.setUint32(16, 0, true);
+    view.setUint32(20, xorMaskSize + andMaskSize, true);
+    view.setInt32(24, 0, true);
+    view.setInt32(28, 0, true);
+    view.setUint32(32, 0, true);
+    view.setUint32(36, 0, true);
+
+    let offset = infoHeaderSize;
+    for (let y = h - 1; y >= 0; y--) {
+        for (let x = 0; x < w; x++) {
+            const i = (y * w + x) * 4;
+            view.setUint8(offset++, data[i + 2]);
+            view.setUint8(offset++, data[i + 1]);
+            view.setUint8(offset++, data[i + 0]);
+            view.setUint8(offset++, data[i + 3]);
+        }
+    }
+
+    return { width: w, height: h, bytes: new Uint8Array(buffer) };
+}
+
+async function generateICO(canvasOrCanvases) {
+    const list = Array.isArray(canvasOrCanvases) ? canvasOrCanvases : [canvasOrCanvases];
+    if (!list.length) {
+        throw new Error('No canvases for ICO');
+    }
+
+    const payloads = list.map((c) => encodeIcoBmpPayload(c));
+    const count = payloads.length;
+    const headerSize = 6 + (16 * count);
+    let dataOffset = headerSize;
+    let totalSize = headerSize;
+    for (const p of payloads) {
+        totalSize += p.bytes.byteLength;
+    }
+
+    const buffer = new ArrayBuffer(totalSize);
+    const view = new DataView(buffer);
+    const uint8 = new Uint8Array(buffer);
+
+    view.setUint16(0, 0, true);
+    view.setUint16(2, 1, true);
+    view.setUint16(4, count, true);
+
+    payloads.forEach((p, index) => {
+        const dir = 6 + (index * 16);
+        view.setUint8(dir, p.width >= 256 ? 0 : p.width);
+        view.setUint8(dir + 1, p.height >= 256 ? 0 : p.height);
+        view.setUint8(dir + 2, 0);
+        view.setUint8(dir + 3, 0);
+        view.setUint16(dir + 4, 1, true);
+        view.setUint16(dir + 6, 32, true);
+        view.setUint32(dir + 8, p.bytes.byteLength, true);
+        view.setUint32(dir + 12, dataOffset, true);
+        uint8.set(p.bytes, dataOffset);
+        dataOffset += p.bytes.byteLength;
+    });
+
+    return new Blob([buffer], { type: 'image/x-icon' });
+}
+
+async function buildFaviconPackZip(img, crop, baseName) {
+    const packFiles = [];
+    const icoCanvases = FAVICON_ICO_SIZES.map((size) => createCroppedSquareCanvas(img, crop, size));
+    await yieldToUI();
+    const icoBlob = await generateICO(icoCanvases);
+    packFiles.push({ name: 'favicon.ico', blob: icoBlob });
+
+    for (const spec of FAVICON_PNG_SPECS) {
+        await yieldToUI();
+        const canvas = createCroppedSquareCanvas(img, crop, spec.size);
+        const blob = await canvasToPngBlob(canvas);
+        packFiles.push({ name: spec.name, blob });
+    }
+
+    const manifestText = buildSiteWebManifest();
+    const manifestBlob = new Blob([manifestText], { type: 'application/manifest+json' });
+    packFiles.push({ name: 'site.webmanifest', blob: manifestBlob });
+
+    const zip = new JSZip();
+    for (const entry of packFiles) {
+        zip.file(sanitizeFilename(entry.name), entry.blob);
+    }
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const safeBase = sanitizeFilename(baseName).replace(/\.[^/.]+$/, '') || 'image';
+    return {
+        zipBlob,
+        zipName: `${safeBase}-favicon.zip`,
+        folderName: `${safeBase}-favicon`,
+        packFiles
+    };
+}
+
+function getCropDisplayMetrics(stageEl, naturalWidth, naturalHeight) {
+    const stageW = stageEl.clientWidth || 1;
+    const stageH = stageEl.clientHeight || 1;
+    const scale = Math.min(stageW / naturalWidth, stageH / naturalHeight);
+    const width = naturalWidth * scale;
+    const height = naturalHeight * scale;
+    const left = (stageW - width) / 2;
+    const top = (stageH - height) / 2;
+    return { left, top, width, height, scale };
+}
+
+function syncCropSelectionUI() {
+    const selection = document.getElementById('cropSelection');
+    const imageEl = document.getElementById('cropImage');
+    if (!selection || !imageEl) return;
+
+    imageEl.style.left = `${cropDisplay.left}px`;
+    imageEl.style.top = `${cropDisplay.top}px`;
+    imageEl.style.width = `${cropDisplay.width}px`;
+    imageEl.style.height = `${cropDisplay.height}px`;
+
+    const left = cropDisplay.left + (cropWorking.sx * cropDisplay.scale);
+    const top = cropDisplay.top + (cropWorking.sy * cropDisplay.scale);
+    const size = cropWorking.size * cropDisplay.scale;
+    selection.style.left = `${left}px`;
+    selection.style.top = `${top}px`;
+    selection.style.width = `${size}px`;
+    selection.style.height = `${size}px`;
+}
+
+function closeCropModal(result) {
+    const modal = document.getElementById('cropModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.hidden = true;
+    }
+    cropDragState = null;
+    cropModalActiveId = null;
+    const resolver = cropModalResolver;
+    cropModalResolver = null;
+    if (cropPreviousFocus && typeof cropPreviousFocus.focus === 'function') {
+        try { cropPreviousFocus.focus(); } catch (e) { /* ignore */ }
+    }
+    cropPreviousFocus = null;
+    if (resolver) resolver(result);
+}
+
+function openSquareCropModal(id, img, existingCrop = null) {
+    const run = () => new Promise((resolve) => {
+        const modal = document.getElementById('cropModal');
+        const stage = document.getElementById('cropStage');
+        const imageEl = document.getElementById('cropImage');
+        const confirmBtn = document.getElementById('cropConfirmBtn');
+        if (!modal || !stage || !imageEl || !confirmBtn) {
+            resolve(defaultSquareCrop(img.width, img.height));
+            return;
+        }
+
+        cropModalResolver = resolve;
+        cropModalActiveId = id;
+        cropNatural = { width: img.width, height: img.height };
+        cropWorking = clampSquareCrop(
+            existingCrop || defaultSquareCrop(img.width, img.height),
+            img.width,
+            img.height
+        );
+
+        cropPreviousFocus = document.activeElement;
+
+        // Prefer object URL from original file when available for <img>
+        const file = originalFiles.get(id);
+        let objectUrl = null;
+        const cleanupUrl = () => {
+            if (objectUrl) {
+                URL.revokeObjectURL(objectUrl);
+                objectUrl = null;
+            }
+        };
+
+        const finishOpen = () => {
+            cropDisplay = getCropDisplayMetrics(stage, cropNatural.width, cropNatural.height);
+            syncCropSelectionUI();
+            modal.classList.remove('hidden');
+            modal.hidden = false;
+            confirmBtn.focus();
+        };
+
+        imageEl.onload = () => {
+            cropNatural = {
+                width: imageEl.naturalWidth || img.width,
+                height: imageEl.naturalHeight || img.height
+            };
+            cropWorking = clampSquareCrop(cropWorking, cropNatural.width, cropNatural.height);
+            finishOpen();
+        };
+        imageEl.onerror = () => {
+            cleanupUrl();
+            // Fallback: draw bitmap to canvas data URL
+            try {
+                const c = document.createElement('canvas');
+                c.width = img.width;
+                c.height = img.height;
+                c.getContext('2d').drawImage(img, 0, 0);
+                imageEl.src = c.toDataURL('image/png');
+            } catch (e) {
+                closeCropModal(null);
+            }
+        };
+
+        if (file) {
+            objectUrl = URL.createObjectURL(file);
+            imageEl.src = objectUrl;
+        } else {
+            imageEl.onerror();
+        }
+
+        // Revoke object URL when modal closes
+        const originalResolver = cropModalResolver;
+        cropModalResolver = (result) => {
+            cleanupUrl();
+            originalResolver(result);
+        };
+
+        // If image already cached in element
+        if (imageEl.complete && imageEl.naturalWidth) {
+            imageEl.onload();
+        }
+    });
+
+    const queued = cropModalChain.then(run, run);
+    cropModalChain = queued.then(() => undefined, () => undefined);
+    return queued;
+}
+
+function setupCropModal() {
+    const modal = document.getElementById('cropModal');
+    const stage = document.getElementById('cropStage');
+    const selection = document.getElementById('cropSelection');
+    const cancelBtn = document.getElementById('cropCancelBtn');
+    const confirmBtn = document.getElementById('cropConfirmBtn');
+    const backdrop = document.getElementById('cropModalBackdrop');
+    if (!modal || !stage || !selection) return;
+
+    const pointerPos = (e) => {
+        const rect = stage.getBoundingClientRect();
+        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    };
+
+    const onPointerMove = (e) => {
+        if (!cropDragState) return;
+        e.preventDefault();
+        const pos = pointerPos(e);
+        const dx = (pos.x - cropDragState.startX) / cropDisplay.scale;
+        const dy = (pos.y - cropDragState.startY) / cropDisplay.scale;
+        const start = cropDragState.startCrop;
+
+        if (cropDragState.mode === 'move') {
+            cropWorking = clampSquareCrop({
+                sx: start.sx + dx,
+                sy: start.sy + dy,
+                size: start.size
+            }, cropNatural.width, cropNatural.height);
+        } else {
+            const handle = cropDragState.handle;
+            let sizeDelta = 0;
+            if (handle === 'se') sizeDelta = Math.max(dx, dy);
+            else if (handle === 'nw') sizeDelta = Math.max(-dx, -dy);
+            else if (handle === 'ne') sizeDelta = Math.max(dx, -dy);
+            else if (handle === 'sw') sizeDelta = Math.max(-dx, dy);
+
+            let size = start.size + sizeDelta;
+            let sx = start.sx;
+            let sy = start.sy;
+            if (handle === 'nw') {
+                sx = start.sx + (start.size - size);
+                sy = start.sy + (start.size - size);
+            } else if (handle === 'ne') {
+                sy = start.sy + (start.size - size);
+            } else if (handle === 'sw') {
+                sx = start.sx + (start.size - size);
+            }
+            cropWorking = clampSquareCrop({ sx, sy, size }, cropNatural.width, cropNatural.height);
+        }
+        syncCropSelectionUI();
+    };
+
+    const onPointerUp = () => {
+        cropDragState = null;
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
+        window.removeEventListener('pointercancel', onPointerUp);
+    };
+
+    selection.addEventListener('pointerdown', (e) => {
+        if (modal.classList.contains('hidden')) return;
+        const handle = e.target && e.target.dataset ? e.target.dataset.handle : null;
+        e.preventDefault();
+        e.stopPropagation();
+        const pos = pointerPos(e);
+        cropDragState = {
+            mode: handle ? 'resize' : 'move',
+            handle,
+            startX: pos.x,
+            startY: pos.y,
+            startCrop: { ...cropWorking }
+        };
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('pointercancel', onPointerUp);
+    });
+
+    window.addEventListener('resize', () => {
+        if (modal.classList.contains('hidden')) return;
+        cropDisplay = getCropDisplayMetrics(stage, cropNatural.width, cropNatural.height);
+        syncCropSelectionUI();
+    });
+
+    const confirm = () => {
+        if (!cropModalResolver) return;
+        closeCropModal(clampSquareCrop(cropWorking, cropNatural.width, cropNatural.height));
+    };
+    const cancel = () => {
+        if (!cropModalResolver) return;
+        closeCropModal(null);
+    };
+
+    confirmBtn.addEventListener('click', confirm);
+    cancelBtn.addEventListener('click', cancel);
+    if (backdrop) backdrop.addEventListener('click', cancel);
+
+    document.addEventListener('keydown', (e) => {
+        if (modal.classList.contains('hidden') || !cropModalResolver) return;
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            cancel();
+        } else if (e.key === 'Enter' && e.target !== cancelBtn) {
+            e.preventDefault();
+            confirm();
+        }
+    });
+}
+
+window.editCrop = async function(id) {
+    const file = originalFiles.get(id);
+    if (!file || invalidFileIds.has(id)) return;
+    let img = imageCache.get(id);
+    if (!img) {
+        processImage(file, id);
+        return;
+    }
+    const existing = cropRegions.get(id) || defaultSquareCrop(img.width, img.height);
+    const crop = await openSquareCropModal(id, img, existing);
+    if (!crop) return;
+    cropRegions.set(id, crop);
+    processImage(file, id);
+};
+
 function calculateDimensions(origWidth, origHeight) {
     const keepAspect = document.getElementById('keepAspectRatio').checked;
     const targetWidth = parseInt(document.getElementById('inputWidth').value, 10);
@@ -1554,6 +2079,8 @@ async function encodeImage(canvas, ctx, width, height, format, extension, qualit
         blob = await generateICO(canvas);
         actualFormat = 'image/x-icon';
         actualExtension = 'ico';
+    } else if (format === FAVICON_PACK_FORMAT) {
+        throw new Error('Favicon pack must use buildFaviconPackZip');
     } else {
         // Use Native Browser Encoding
         await yieldToUI();
@@ -1636,7 +2163,11 @@ async function processImage(file, existingId = null) {
                         // Fallback in case createImageBitmap fails directly on the file
                         const rawImg = await loadImage(file);
                         if (session !== processingSession) return;
-                        img = await createImageBitmap(rawImg);
+                        try {
+                            img = await createImageBitmap(rawImg);
+                        } catch (e2) {
+                            img = rawImg;
+                        }
                     }
                 } else {
                     img = await loadImage(file);
@@ -1650,7 +2181,7 @@ async function processImage(file, existingId = null) {
         if (session !== processingSession) return;
 
         // Auto-fill dimension inputs only when empty (do not overwrite user-set limits)
-        if (!existingId) {
+        if (!existingId && format !== FAVICON_PACK_FORMAT) {
             if (img.width > globalMaxWidth) globalMaxWidth = img.width;
             if (img.height > globalMaxHeight) globalMaxHeight = img.height;
 
@@ -1660,25 +2191,134 @@ async function processImage(file, existingId = null) {
             if (!hInput.value && globalMaxHeight) hInput.value = globalMaxHeight;
         }
 
-        const { width, height } = calculateDimensions(img.width, img.height);
+        let blob;
+        let newName;
+        let metaHtml;
+        let packMeta = null;
+        let previewSourceWidth;
+        let previewSourceHeight;
+        let previewCrop = null;
 
-        await yieldToUI();
-        if (session !== processingSession) return;
+        if (format === FAVICON_PACK_FORMAT) {
+            let crop = cropRegions.get(id);
+            if (!crop) {
+                // Release concurrency slot while waiting for crop UI
+                activeProcessing--;
+                acquiredSlot = false;
+                if (processingQueue.length > 0) {
+                    const nextResolve = processingQueue.shift();
+                    nextResolve();
+                }
+                updateBatchProgressUI();
 
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
+                const chosen = await openSquareCropModal(id, img, null);
+                if (session !== processingSession) return;
+                if (!chosen) {
+                    // Cancelled before first crop — remove incomplete row
+                    if (window.removeResult) window.removeResult(id);
+                    return;
+                }
+                cropRegions.set(id, chosen);
+                crop = chosen;
 
-        // If target format is JPEG, fill with white background first
-        // because JPEG doesn't support transparency and transparent pixels turn black.
-        if (format === 'image/jpeg') {
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, width, height);
+                // Re-acquire concurrency slot
+                if (activeProcessing >= MAX_CONCURRENT) {
+                    await new Promise(resolve => processingQueue.push(resolve));
+                }
+                if (session !== processingSession) return;
+                activeProcessing++;
+                acquiredSlot = true;
+                updateBatchProgressUI();
+            } else {
+                crop = clampSquareCrop(crop, img.width, img.height);
+                cropRegions.set(id, crop);
+            }
+
+            await yieldToUI();
+            if (session !== processingSession) return;
+
+            const pack = await buildFaviconPackZip(img, crop, file.name);
+            if (session !== processingSession) return;
+            blob = pack.zipBlob;
+            newName = pack.zipName;
+            packMeta = {
+                isFaviconPack: true,
+                folderName: pack.folderName,
+                packFiles: pack.packFiles
+            };
+
+            previewSourceWidth = crop.size;
+            previewSourceHeight = crop.size;
+            previewCrop = { sx: crop.sx, sy: crop.sy, size: crop.size };
+
+            const origSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            let compSizeStr = '';
+            if (blob.size > 1024 * 1024) {
+                compSizeStr = (blob.size / (1024 * 1024)).toFixed(2) + ' MB';
+            } else {
+                compSizeStr = (blob.size / 1024).toFixed(1) + ' KB';
+            }
+            metaHtml = `
+                <span data-i18n="faviconPackMeta">${i18n[currentLang].faviconPackMeta}</span>
+                • ${crop.size}×${crop.size}px → 16–512px •
+                <span data-i18n="original">${i18n[currentLang].original}</span>: ${origSizeMB} MB
+                &rarr;
+                <span data-i18n="compressed">${i18n[currentLang].compressed}</span>: ${compSizeStr}
+            `;
+        } else {
+            const { width, height } = calculateDimensions(img.width, img.height);
+
+            await yieldToUI();
+            if (session !== processingSession) return;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+
+            // If target format is JPEG, fill with white background first
+            // because JPEG doesn't support transparency and transparent pixels turn black.
+            if (format === 'image/jpeg') {
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, width, height);
+            }
+
+            // Draw image directly to preserve transparency (or over the white bg for jpeg)
+            ctx.drawImage(img, 0, 0, width, height);
+
+            await yieldToUI();
+            if (session !== processingSession) return;
+
+            previewSourceWidth = width;
+            previewSourceHeight = height;
+            previewCrop = null;
+
+            const encoded = await encodeImage(canvas, ctx, width, height, format, extension, quality);
+            if (session !== processingSession) return;
+            blob = encoded.blob;
+
+            if (!blob) {
+                showError(id);
+                return;
+            }
+
+            const safeBaseName = sanitizeFilename(file.name).replace(/\.[^/.]+$/, "");
+            newName = safeBaseName + `.${encoded.actualExtension}`;
+
+            const origSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            let compSizeStr = '';
+            if (blob.size > 1024 * 1024) {
+                compSizeStr = (blob.size / (1024 * 1024)).toFixed(2) + ' MB';
+            } else {
+                compSizeStr = (blob.size / 1024).toFixed(1) + ' KB';
+            }
+            metaHtml = `
+                ${width}x${height}px •
+                <span data-i18n="original">${i18n[currentLang].original}</span>: ${origSizeMB} MB
+                &rarr;
+                <span data-i18n="compressed">${i18n[currentLang].compressed}</span>: ${compSizeStr}
+            `;
         }
-
-        // Draw image directly to preserve transparency (or over the white bg for jpeg)
-        ctx.drawImage(img, 0, 0, width, height);
 
         await yieldToUI();
         if (session !== processingSession) return;
@@ -1687,10 +2327,24 @@ async function processImage(file, existingId = null) {
         const previewCanvas = document.createElement('canvas');
         const prevCtx = previewCanvas.getContext('2d');
         const MAX_PREV_SIZE = 100;
-        const prevRatio = Math.min(MAX_PREV_SIZE / width, MAX_PREV_SIZE / height);
-        previewCanvas.width = width * prevRatio;
-        previewCanvas.height = height * prevRatio;
-        prevCtx.drawImage(img, 0, 0, previewCanvas.width, previewCanvas.height);
+        const prevRatio = Math.min(MAX_PREV_SIZE / previewSourceWidth, MAX_PREV_SIZE / previewSourceHeight, 1);
+        previewCanvas.width = Math.max(1, Math.round(previewSourceWidth * prevRatio));
+        previewCanvas.height = Math.max(1, Math.round(previewSourceHeight * prevRatio));
+        if (previewCrop) {
+            prevCtx.drawImage(
+                img,
+                previewCrop.sx,
+                previewCrop.sy,
+                previewCrop.size,
+                previewCrop.size,
+                0,
+                0,
+                previewCanvas.width,
+                previewCanvas.height
+            );
+        } else {
+            prevCtx.drawImage(img, 0, 0, previewCanvas.width, previewCanvas.height);
+        }
 
         const previewUrl = previewCanvas.toDataURL('image/png', 0.5);
         const previewEl = document.getElementById(`preview-${id}`);
@@ -1699,43 +2353,22 @@ async function processImage(file, existingId = null) {
         await yieldToUI();
         if (session !== processingSession) return;
 
-        const { blob, actualFormat, actualExtension } = await encodeImage(canvas, ctx, width, height, format, extension, quality);
-        if (session !== processingSession) return;
-
-        if (!blob) {
-            showError(id);
-            return;
-        }
-
-        await yieldToUI();
-        if (session !== processingSession) return;
-
-        const safeBaseName = sanitizeFilename(file.name).replace(/\.[^/.]+$/, "");
-        const newName = safeBaseName + `.${actualExtension}`;
-
         // Store for ZIP
         convertedFiles.delete(id);
-        convertedFiles.set(id, { id: id, name: newName, blob: blob });
+        convertedFiles.set(id, {
+            id: id,
+            name: newName,
+            blob: blob,
+            isFaviconPack: !!(packMeta && packMeta.isFaviconPack),
+            folderName: packMeta ? packMeta.folderName : null,
+            packFiles: packMeta ? packMeta.packFiles : null
+        });
 
         const blobUrl = URL.createObjectURL(blob);
 
-        // Format sizes nicely
-        const origSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-        let compSizeStr = '';
-        if (blob.size > 1024 * 1024) {
-            compSizeStr = (blob.size / (1024 * 1024)).toFixed(2) + ' MB';
-        } else {
-            compSizeStr = (blob.size / 1024).toFixed(1) + ' KB';
-        }
-
         const metaEl = document.getElementById(`meta-${id}`);
         if (metaEl) {
-            metaEl.innerHTML = `
-                ${width}x${height}px •
-                <span data-i18n="original">${i18n[currentLang].original}</span>: ${origSizeMB} MB
-                &rarr;
-                <span data-i18n="compressed">${i18n[currentLang].compressed}</span>: ${compSizeStr}
-            `;
+            metaEl.innerHTML = metaHtml;
         }
 
         const statusContainer = document.getElementById(`status-${id}`);
@@ -1744,12 +2377,17 @@ async function processImage(file, existingId = null) {
             return;
         }
 
+        const cropBtn = format === FAVICON_PACK_FORMAT
+            ? `<button type="button" class="btn secondary" data-i18n="cropEdit" onclick="editCrop('${id}')">${i18n[currentLang].cropEdit}</button>`
+            : '';
+
         // Display normal success state regardless of whether WASM polyfill was used
         statusContainer.innerHTML = `
             <div class="action-buttons-row">
                 <a href="${blobUrl}" download="${escapeHTML(newName)}" class="btn primary" style="text-decoration:none;">
                     <span data-i18n="download">${i18n[currentLang].download}</span>
                 </a>
+                ${cropBtn}
                 <button class="btn delete-btn" title="${i18n[currentLang].remove}" aria-label="${i18n[currentLang].remove}" onclick="removeResult('${id}')">
                     ${DELETE_ICON_SVG}
                 </button>
@@ -1773,111 +2411,6 @@ async function processImage(file, existingId = null) {
         }
         noteBatchItemFinished(epoch);
     }
-}
-
-async function generateICO(canvas) {
-    return new Promise((resolve) => {
-        const width = canvas.width;
-        const height = canvas.height;
-
-        // ICO requires images to be <= 256x256.
-        // Preserve aspect ratio when scaling down to fit within 256x256.
-        let w = width;
-        let h = height;
-        if (w > 256 || h > 256) {
-            const ratio = Math.min(256 / w, 256 / h);
-            w = Math.round(w * ratio);
-            h = Math.round(h * ratio);
-        }
-
-        // Create a temporary canvas to resize if necessary and ensure correct dimensions
-        const tmpCanvas = document.createElement('canvas');
-        tmpCanvas.width = w;
-        tmpCanvas.height = h;
-        const tmpCtx = tmpCanvas.getContext('2d');
-        tmpCtx.drawImage(canvas, 0, 0, w, h);
-
-        const imgData = tmpCtx.getImageData(0, 0, w, h);
-        const data = imgData.data;
-
-        // ICO Header (6 bytes)
-        // 0-1: Reserved (0)
-        // 2-3: Type (1 for ICO)
-        // 4-5: Number of images (1)
-
-        // Image Directory (16 bytes)
-        // 0: Width (0 means 256)
-        // 1: Height (0 means 256)
-        // 2: Color count (0 for 32-bit)
-        // 3: Reserved (0)
-        // 4-5: Color planes (1)
-        // 6-7: Bit count (32)
-        // 8-11: Size of image data in bytes
-        // 12-15: Offset of image data from beginning of file (22)
-
-        // BITMAPINFOHEADER (40 bytes)
-        // ...
-
-        const bytesPerPixel = 4;
-        const xorMaskSize = w * h * bytesPerPixel;
-        // AND mask size must be padded to a multiple of 4 bytes per row
-        const rowBytes = Math.ceil(w / 32) * 4;
-        const andMaskSize = rowBytes * h;
-        const infoHeaderSize = 40;
-        const imageSize = infoHeaderSize + xorMaskSize + andMaskSize;
-        const fileSize = 6 + 16 + imageSize;
-
-        const buffer = new ArrayBuffer(fileSize);
-        const view = new DataView(buffer);
-        const uint8 = new Uint8Array(buffer);
-
-        // ICO Header
-        view.setUint16(0, 0, true); // Reserved
-        view.setUint16(2, 1, true); // Type: 1
-        view.setUint16(4, 1, true); // Image count
-
-        // Image Directory
-        view.setUint8(6, w === 256 ? 0 : w); // Width
-        view.setUint8(7, h === 256 ? 0 : h); // Height
-        view.setUint8(8, 0); // Colors
-        view.setUint8(9, 0); // Reserved
-        view.setUint16(10, 1, true); // Planes
-        view.setUint16(12, 32, true); // BPP
-        view.setUint32(14, imageSize, true); // Size
-        view.setUint32(18, 22, true); // Offset
-
-        // DIB Header (BITMAPINFOHEADER)
-        view.setUint32(22, infoHeaderSize, true); // Header size
-        view.setInt32(26, w, true); // Width
-        view.setInt32(30, h * 2, true); // Height (x2 for XOR and AND masks)
-        view.setUint16(34, 1, true); // Planes
-        view.setUint16(36, 32, true); // BPP
-        view.setUint32(38, 0, true); // Compression (0 = BI_RGB)
-        view.setUint32(42, xorMaskSize + andMaskSize, true); // Image size
-        view.setInt32(46, 0, true); // X pixels per meter
-        view.setInt32(50, 0, true); // Y pixels per meter
-        view.setUint32(54, 0, true); // Colors used
-        view.setUint32(58, 0, true); // Important colors
-
-        // Pixel Data (XOR Mask) - Bottom-up, BGRA order
-        let offset = 22 + infoHeaderSize;
-        for (let y = h - 1; y >= 0; y--) {
-            for (let x = 0; x < w; x++) {
-                const i = (y * w + x) * 4;
-                view.setUint8(offset++, data[i + 2]); // B
-                view.setUint8(offset++, data[i + 1]); // G
-                view.setUint8(offset++, data[i + 0]); // R
-                view.setUint8(offset++, data[i + 3]); // A
-            }
-        }
-
-        // AND Mask (1 bit per pixel, padded to 32 bits per row) - Bottom-up
-        // Since we are using 32-bit alpha in XOR mask, AND mask can be all 0s (opaque)
-        // to let the 8-bit alpha channel handle transparency.
-        // We initialize it to 0 implicitly when ArrayBuffer is created.
-
-        resolve(new Blob([buffer], { type: 'image/x-icon' }));
-    });
 }
 
 function loadImage(file) {
@@ -1936,6 +2469,7 @@ window.removeResult = function(id) {
     li.remove();
     originalFiles.delete(id);
     invalidFileIds.delete(id);
+    cropRegions.delete(id);
 
     // Release cached image
     if (imageCache.has(id)) {
@@ -1985,6 +2519,7 @@ function clearAll() {
     convertedFiles.clear();
     originalFiles.clear();
     invalidFileIds.clear();
+    cropRegions.clear();
 
     // Reset global max dimensions
     globalMaxWidth = 0;
@@ -2003,4 +2538,4 @@ document.addEventListener('DOMContentLoaded', () => {
     initUI();
 });
 
-export { calculateDimensions, encodeImage, formatBatchProgressCount, noteBatchItemQueued, noteBatchItemFinished, resetBatchProgress, batchProgress };
+export { calculateDimensions, encodeImage, formatBatchProgressCount, noteBatchItemQueued, noteBatchItemFinished, resetBatchProgress, batchProgress, defaultSquareCrop, clampSquareCrop, buildSiteWebManifest, generateICO, FAVICON_ICO_SIZES, FAVICON_PNG_SPECS };

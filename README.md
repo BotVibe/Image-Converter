@@ -4,11 +4,12 @@ A simple, fast, and 100% privacy-compliant image converter built entirely with V
 
 ## Features
 
-- **Format Conversion:** Convert common image formats (JPEG, PNG, WebP, AVIF, GIF, BMP, SVG) to **WebP**, **AVIF**, **PNG**, **JPEG**, or **ICO** directly in the browser. Uses native Canvas APIs where supported, and falls back to WebAssembly polyfills (`@jsquash`) for guaranteed compatibility (e.g., AVIF on Safari).
+- **Format Conversion:** Convert common image formats (JPEG, PNG, WebP, AVIF, GIF, BMP, SVG) to **WebP**, **AVIF**, **PNG**, **JPEG**, **ICO**, or a **Favicon Pack** directly in the browser. Uses native Canvas APIs where supported, and falls back to WebAssembly polyfills (`@jsquash`) for guaranteed compatibility (e.g., AVIF on Safari).
+- **Favicon Pack:** Pick a square crop, then download a ZIP with a multi-size `favicon.ico` (16/32/48/256), standard PNGs (`favicon-16x16`, `favicon-32x32`, `apple-touch-icon` 180, Android 192/512), and a minimal `site.webmanifest`. Bulk “Download All” nests each pack’s files in a folder (not nested ZIPs).
 - **Smart Resizing:**
   - **Maintain Aspect Ratio (Bounding Box):** Set a *Max Width* and *Max Height*. The image will scale down proportionally to fit inside these bounds without distortion.
   - **Exact Dimensions (Stretch):** Uncheck the aspect ratio box to force the image to exact *Width* and *Height* dimensions.
-  - **Safe Limits:** To ensure optimal performance and compatibility, output dimensions are automatically clamped to a maximum of 4096px across all formats. ICO outputs are additionally scaled to fit within 256×256.
+  - **Safe Limits:** To ensure optimal performance and compatibility, output dimensions are automatically clamped to a maximum of 4096px across all formats. ICO outputs are additionally scaled to fit within 256×256. Favicon Pack ignores width/height/quality settings and uses fixed icon sizes after the square crop.
 - **Batch Processing:** Upload multiple images via Drag & Drop or file selection. Invalid or failed items appear in the results list with a remove action. While work runs, a progress overlay shows batch completion (e.g. `3 / 12`) and the pipeline yields to the UI between heavy steps to reduce freezes.
 - **Item Management:** Individually remove processed, invalid, or failed images from the list if you decide not to keep them.
 - **Bulk Download:** Download converted images individually or bundled as a ZIP file.
@@ -66,7 +67,8 @@ To enable it:
 - Conversions to **PNG**, **WebP**, and **AVIF** preserve image transparency.
 - **JPEG** does not support transparency; transparent pixels are filled with white before encoding.
 - **GIF** animations are flattened to a single frame (first frame / browser decode result).
-- **ICO** outputs are capped at 256×256 while preserving aspect ratio.
+- **ICO** outputs are capped at 256×256 while preserving aspect ratio. Favicon Pack builds a multi-size ICO (16/32/48/256) from the square crop.
+- **Favicon Pack** requires a square crop (largest centered square by default); crop can be edited per result before regenerating the ZIP.
 
 ## Browser Support
 - **Chrome / Edge / Opera:** Full support.
