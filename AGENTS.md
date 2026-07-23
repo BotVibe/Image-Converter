@@ -53,6 +53,7 @@ When interacting with this repository, AI agents must strictly adhere to the fol
   - Handles memory management gracefully (e.g., revoking Blob URLs when an individual image is removed or recompressed).
   - Contains the core logic for calculating image dimensions (bounding box vs. exact stretch based on the aspect ratio toggle).
   - Handles the Canvas generation, blob extraction, WASM fallbacks, ICO generation (single-image and multi-size), Favicon Pack ZIP building (`buildFaviconPackZip`), square crop modal (`openSquareCropModal` / `cropRegions`), and the bundling into JSZip (localized ZIP status/error strings). Bulk ZIP flattens favicon pack entries into per-image folders.
+  - Crop modal must be shown **before** measuring `#cropStage` (`layoutCropModal`); measuring while `display:none` yields 0×0 and breaks image/selection placement.
   - Yields to the event loop between heavy stages and shows a batch progress overlay (`#batchProgress`) while work is in flight.
   - Only auto-fills width/height inputs when they are empty (does not overwrite user-set limits on later uploads). Favicon Pack disables width/height/aspect/quality controls.
 - `public/jszip.min.js`: Locally hosted dependency for generating ZIP archives, served statically by Vite.
