@@ -122,6 +122,8 @@ const mockDocument = {
             el.getContext = () => ({
                 drawImage() {},
                 fillRect() {},
+                clearRect() {},
+                putImageData() {},
                 getImageData(x, y, w, h) {
                     const width = w || el.width || 1;
                     const height = h || el.height || 1;
