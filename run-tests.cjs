@@ -99,6 +99,14 @@ class MockElement {
             delete elements[this.id];
         }
     }
+    removeChild(child) {
+        if (!child) return child;
+        const idx = this._children.indexOf(child);
+        if (idx >= 0) this._children.splice(idx, 1);
+        child.parentElement = null;
+        return child;
+    }
+    click() {}
     insertAdjacentHTML() {}
     get textContent() { return this._textContent; }
     set textContent(v) { this._textContent = v; }
@@ -235,6 +243,8 @@ const runner = async (document, navigator, window, URL) => {
     class JSZip {
         constructor() {
             this.files = {};
+            JSZip.instances.push(this);
+            JSZip.last = this;
         }
         file(name, data) {
             this.files[name] = data;
@@ -244,6 +254,8 @@ const runner = async (document, navigator, window, URL) => {
             return new Blob([new ArrayBuffer(8)], { type: 'application/zip' });
         }
     }
+    JSZip.instances = [];
+    JSZip.last = null;
     const matchMedia = () => ({ matches: false });
     window.matchMedia = matchMedia;
     const alert = () => {};
