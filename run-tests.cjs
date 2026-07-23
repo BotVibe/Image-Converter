@@ -116,6 +116,28 @@ const mockDocument = {
     createElement: (tag) => {
         const el = new MockElement(tag);
         el.tagName = (tag || '').toUpperCase();
+        if (el.tagName === 'CANVAS') {
+            el.width = 0;
+            el.height = 0;
+            el.getContext = () => ({
+                drawImage() {},
+                fillRect() {},
+                getImageData(x, y, w, h) {
+                    const width = w || el.width || 1;
+                    const height = h || el.height || 1;
+                    return {
+                        data: new Uint8ClampedArray(width * height * 4),
+                        width,
+                        height
+                    };
+                }
+            });
+            el.toBlob = (cb, type) => {
+                const size = Math.max(1, (el.width || 1) * (el.height || 1));
+                cb(new Blob([new ArrayBuffer(size)], { type: type || 'image/png' }));
+            };
+            el.toDataURL = () => 'data:image/png;base64,AA==';
+        }
         return el;
     },
     createTextNode: (text) => {

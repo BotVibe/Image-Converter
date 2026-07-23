@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="title">Image Converter</title>
-    <meta name="description" content="A simple, fast, and 100% privacy-compliant image converter. Convert images to WebP, AVIF, PNG, JPEG, and ICO locally in your browser.">
-    <meta name="keywords" content="image converter, privacy image converter, webp, avif, png, jpeg, ico, local image processing">
+    <meta name="description" content="A simple, fast, and 100% privacy-compliant image converter. Convert images to WebP, AVIF, PNG, JPEG, ICO, or a Favicon Pack locally in your browser.">
+    <meta name="keywords" content="image converter, privacy image converter, webp, avif, png, jpeg, ico, favicon pack, local image processing">
     <link rel="canonical" href="https://botvibe.github.io/Image-Converter/">
 
     <!-- Favicon (Inline SVG for zero external requests) -->
@@ -85,10 +85,11 @@
                     <option value="image/png">PNG</option>
                     <option value="image/jpeg">JPEG</option>
                     <option value="image/x-icon">ICO</option>
+                    <option value="favicon-pack">Favicon Pack</option>
                 </select>
             </div>
 
-            <div class="dimensions-group">
+            <div class="dimensions-group" id="dimensionsGroup">
                 <div class="form-group">
                     <label for="inputWidth" id="labelWidth" data-i18n="maxWidth">Max Width (px):</label>
                     <input type="number" id="inputWidth" min="1" placeholder="Auto" data-i18n-placeholder="autoPlaceholder">
@@ -99,7 +100,7 @@
                 </div>
             </div>
 
-            <div class="form-group checkbox-group">
+            <div class="form-group checkbox-group" id="aspectRatioGroup">
                 <input type="checkbox" id="keepAspectRatio" checked>
                 <label for="keepAspectRatio" data-i18n="keepAspectRatio">Keep Aspect Ratio</label>
             </div>
@@ -146,6 +147,28 @@
             <p data-i18n="howItWorksText">This tool converts your images directly within your browser. By utilizing your device's processing power and modern browser capabilities, no images are ever uploaded to an external server. This guarantees 100% privacy and lightning-fast processing, as your data never leaves your device.</p>
         </section>
     </main>
+
+    <div id="cropModal" class="crop-modal hidden" role="dialog" aria-modal="true" aria-labelledby="cropModalTitle" hidden>
+        <div class="crop-modal-backdrop" id="cropModalBackdrop"></div>
+        <div class="crop-modal-dialog">
+            <h2 id="cropModalTitle" data-i18n="cropTitle">Select favicon area</h2>
+            <p class="crop-modal-hint" data-i18n="cropHint">Drag the square to move it. Use the corners to resize.</p>
+            <div class="crop-stage" id="cropStage">
+                <img id="cropImage" class="crop-image" alt="" draggable="false">
+                <div id="cropShade" class="crop-shade" aria-hidden="true"></div>
+                <div id="cropSelection" class="crop-selection" tabindex="0" role="img" aria-label="Crop selection">
+                    <span class="crop-handle" data-handle="nw" aria-hidden="true"></span>
+                    <span class="crop-handle" data-handle="ne" aria-hidden="true"></span>
+                    <span class="crop-handle" data-handle="sw" aria-hidden="true"></span>
+                    <span class="crop-handle" data-handle="se" aria-hidden="true"></span>
+                </div>
+            </div>
+            <div class="crop-modal-actions">
+                <button type="button" id="cropCancelBtn" class="btn secondary" data-i18n="cropCancel">Cancel</button>
+                <button type="button" id="cropConfirmBtn" class="btn primary" data-i18n="cropConfirm">Use crop</button>
+            </div>
+        </div>
+    </div>
 
     <footer class="game-footer">
         <div id="footerDefaultContent">
