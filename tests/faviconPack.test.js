@@ -21,14 +21,40 @@ async function testFaviconPackHelpers() {
     const oversized = clampSquareCrop({ sx: 0, sy: 0, size: 500 }, 120, 80);
     assert(oversized.size === 80 && oversized.sx === 0 && oversized.sy === 0, "Crop size should not exceed min dimension");
 
-    // Manifest content
+    // Manifest content (any + maskable)
     const manifest = buildSiteWebManifest();
     assert(manifest.includes('android-chrome-192x192.png'), "Manifest should reference 192 icon");
     assert(manifest.includes('android-chrome-512x512.png'), "Manifest should reference 512 icon");
+    assert(manifest.includes('maskable-icon-192x192.png'), "Manifest should reference maskable 192");
+    assert(manifest.includes('maskable-icon-512x512.png'), "Manifest should reference maskable 512");
+    assert(manifest.includes('"purpose": "maskable"'), "Manifest should mark maskable purpose");
     assert(manifest.includes('"display": "standalone"'), "Manifest should set display standalone");
 
     assert(Array.isArray(FAVICON_ICO_SIZES) && FAVICON_ICO_SIZES.join(',') === '16,32,48,256', "ICO size list should match plan");
+    assert(FAVICON_PNG_SPECS.some((s) => s.size === 48 && s.name === 'favicon-48x48.png'), "PNG specs should include 48x48");
+    assert(FAVICON_PNG_SPECS.some((s) => s.size === 96 && s.name === 'favicon-96x96.png'), "PNG specs should include 96x96");
     assert(FAVICON_PNG_SPECS.some((s) => s.size === 180 && s.name === 'apple-touch-icon.png'), "PNG specs should include apple-touch-icon");
+    assert(FAVICON_MASKABLE_SPECS.length === 2, "Should define two maskable sizes");
+    assert(FAVICON_MSTILE_SPECS.some((s) => s.name === 'mstile-150x150.png'), "Should include mstile 150");
+    assert(FAVICON_MSTILE_SPECS.some((s) => s.width === 310 && s.height === 150), "Should include wide mstile 310x150");
+    assert(FAVICON_MASKABLE_SAFE_RATIO === 0.8, "Maskable safe zone ratio should be 80%");
+
+    const browserconfig = buildBrowserconfigXml();
+    assert(browserconfig.includes('mstile-150x150.png'), "browserconfig should reference 150 tile");
+    assert(browserconfig.includes('mstile-310x150.png'), "browserconfig should reference wide tile");
+    assert(browserconfig.includes('<browserconfig>'), "browserconfig should wrap msapplication tile");
+
+    const iconsHtml = buildIconsHtmlSnippet();
+    assert(iconsHtml.includes('favicon.svg'), "icons.html should link SVG favicon");
+    assert(iconsHtml.includes('safari-pinned-tab.svg'), "icons.html should link Safari pinned tab");
+    assert(iconsHtml.includes('site.webmanifest'), "icons.html should link webmanifest");
+    assert(iconsHtml.includes('browserconfig.xml'), "icons.html should link browserconfig");
+    assert(iconsHtml.includes('favicon-48x48.png') && iconsHtml.includes('favicon-96x96.png'), "icons.html should link 48/96 PNGs");
+
+    // Maskable canvas keeps target size and draws into safe zone
+    const fakeImg = { width: 100, height: 100 };
+    const maskable = createMaskableSquareCanvas(fakeImg, { sx: 0, sy: 0, size: 100 }, 192, 0.8);
+    assert(maskable.width === 192 && maskable.height === 192, "Maskable canvas should be 192x192");
 
     // Display metrics must use real stage size (hidden/0-size stages are the crop-modal bug)
     const stageOk = {

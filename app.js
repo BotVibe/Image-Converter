@@ -513,13 +513,30 @@ const cropRegions = new Map(); // id -> { sx, sy, size } for favicon-pack square
 
 const FAVICON_PACK_FORMAT = 'favicon-pack';
 const FAVICON_ICO_SIZES = [16, 32, 48, 256];
+/** Full-bleed square PNGs (content fills the canvas). */
 const FAVICON_PNG_SPECS = [
     { size: 16, name: 'favicon-16x16.png' },
     { size: 32, name: 'favicon-32x32.png' },
+    { size: 48, name: 'favicon-48x48.png' },
+    { size: 96, name: 'favicon-96x96.png' },
     { size: 180, name: 'apple-touch-icon.png' },
     { size: 192, name: 'android-chrome-192x192.png' },
     { size: 512, name: 'android-chrome-512x512.png' }
 ];
+/** Android maskable icons — content kept in the center ~80% safe zone. */
+const FAVICON_MASKABLE_SPECS = [
+    { size: 192, name: 'maskable-icon-192x192.png' },
+    { size: 512, name: 'maskable-icon-512x512.png' }
+];
+/** Windows tile sizes (square + wide). */
+const FAVICON_MSTILE_SPECS = [
+    { width: 70, height: 70, name: 'mstile-70x70.png' },
+    { width: 150, height: 150, name: 'mstile-150x150.png' },
+    { width: 310, height: 150, name: 'mstile-310x150.png' },
+    { width: 310, height: 310, name: 'mstile-310x310.png' }
+];
+const FAVICON_MASKABLE_SAFE_RATIO = 0.8;
+const FAVICON_THEME_COLOR = '#ffffff';
 
 // Serialize crop modals so concurrent favicon-pack jobs wait their turn
 let cropModalChain = Promise.resolve();
@@ -1554,13 +1571,48 @@ function buildSiteWebManifest() {
         name: 'App',
         short_name: 'App',
         icons: [
-            { src: 'android-chrome-192x192.png', sizes: '192x192', type: 'image/png' },
-            { src: 'android-chrome-512x512.png', sizes: '512x512', type: 'image/png' }
+            { src: 'android-chrome-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: 'android-chrome-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: 'maskable-icon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+            { src: 'maskable-icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
         ],
-        theme_color: '#ffffff',
-        background_color: '#ffffff',
+        theme_color: FAVICON_THEME_COLOR,
+        background_color: FAVICON_THEME_COLOR,
         display: 'standalone'
     }, null, 2);
+}
+
+function buildBrowserconfigXml() {
+    return `<?xml version="1.0" encoding="utf-8"?>
+<browserconfig>
+  <msapplication>
+    <tile>
+      <square70x70logo src="mstile-70x70.png"/>
+      <square150x150logo src="mstile-150x150.png"/>
+      <wide310x150logo src="mstile-310x150.png"/>
+      <square310x310logo src="mstile-310x310.png"/>
+      <TileColor>${FAVICON_THEME_COLOR}</TileColor>
+    </tile>
+  </msapplication>
+</browserconfig>
+`;
+}
+
+function buildIconsHtmlSnippet() {
+    return `<!-- Favicon Pack — paste into <head> (adjust paths if needed) -->
+<link rel="icon" href="./favicon.ico" sizes="any">
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="48x48" href="./favicon-48x48.png">
+<link rel="icon" type="image/png" sizes="96x96" href="./favicon-96x96.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="mask-icon" href="./safari-pinned-tab.svg" color="${FAVICON_THEME_COLOR}">
+<link rel="manifest" href="./site.webmanifest">
+<meta name="msapplication-config" content="./browserconfig.xml">
+<meta name="msapplication-TileColor" content="${FAVICON_THEME_COLOR}">
+<meta name="theme-color" content="${FAVICON_THEME_COLOR}">
+`;
 }
 
 function canvasToPngBlob(canvas) {
@@ -1572,6 +1624,15 @@ function canvasToPngBlob(canvas) {
     });
 }
 
+function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Failed to read blob as data URL'));
+        reader.readAsDataURL(blob);
+    });
+}
+
 function createCroppedSquareCanvas(img, crop, targetSize) {
     const { sx, sy, size } = clampSquareCrop(crop, img.width, img.height);
     const canvas = document.createElement('canvas');
@@ -1580,6 +1641,82 @@ function createCroppedSquareCanvas(img, crop, targetSize) {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, sx, sy, size, size, 0, 0, targetSize, targetSize);
     return canvas;
+}
+
+/**
+ * Maskable icon: draw the square crop into the center safe zone (~80%),
+ * leaving transparent padding so Android adaptive icons don't clip content.
+ */
+function createMaskableSquareCanvas(img, crop, targetSize, safeRatio = FAVICON_MASKABLE_SAFE_RATIO) {
+    const { sx, sy, size } = clampSquareCrop(crop, img.width, img.height);
+    const canvas = document.createElement('canvas');
+    canvas.width = targetSize;
+    canvas.height = targetSize;
+    const ctx = canvas.getContext('2d');
+    const ratio = Math.min(1, Math.max(0.5, safeRatio || 0.8));
+    const content = Math.max(1, Math.round(targetSize * ratio));
+    const offset = Math.round((targetSize - content) / 2);
+    ctx.clearRect(0, 0, targetSize, targetSize);
+    ctx.drawImage(img, sx, sy, size, size, offset, offset, content, content);
+    return canvas;
+}
+
+/** Windows tile canvas — white background; square crop centered (supports wide tiles). */
+function createMstileCanvas(img, crop, width, height) {
+    const { sx, sy, size } = clampSquareCrop(crop, img.width, img.height);
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = FAVICON_THEME_COLOR;
+    ctx.fillRect(0, 0, width, height);
+    const side = Math.min(width, height);
+    const dx = Math.round((width - side) / 2);
+    const dy = Math.round((height - side) / 2);
+    ctx.drawImage(img, sx, sy, size, size, dx, dy, side, side);
+    return canvas;
+}
+
+async function buildFaviconSvg(img, crop) {
+    const canvas = createCroppedSquareCanvas(img, crop, 512);
+    const pngBlob = await canvasToPngBlob(canvas);
+    const dataUrl = await blobToDataUrl(pngBlob);
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" role="img">
+  <title>Favicon</title>
+  <image width="512" height="512" href="${dataUrl}" xlink:href="${dataUrl}"/>
+</svg>
+`;
+}
+
+/**
+ * Safari pinned-tab SVG: monochrome silhouette (black on transparent) embedded as PNG.
+ * True path tracing needs external libs; this keeps processing 100% client-side.
+ */
+async function buildSafariPinnedTabSvg(img, crop) {
+    const size = 128;
+    const canvas = createCroppedSquareCanvas(img, crop, size);
+    const ctx = canvas.getContext('2d');
+    const imageData = ctx.getImageData(0, 0, size, size);
+    const pixels = imageData.data;
+    for (let i = 0; i < pixels.length; i += 4) {
+        const alpha = pixels[i + 3];
+        const luminance = 0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2];
+        // Opaque, non-near-white pixels become solid black silhouette
+        const on = alpha > 40 && luminance < 245;
+        pixels[i] = 0;
+        pixels[i + 1] = 0;
+        pixels[i + 2] = 0;
+        pixels[i + 3] = on ? 255 : 0;
+    }
+    ctx.putImageData(imageData, 0, 0);
+    const pngBlob = await canvasToPngBlob(canvas);
+    const dataUrl = await blobToDataUrl(pngBlob);
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${size} ${size}">
+  <image width="${size}" height="${size}" href="${dataUrl}" xlink:href="${dataUrl}"/>
+</svg>
+`;
 }
 
 function encodeIcoBmpPayload(canvas) {
@@ -1675,11 +1812,14 @@ async function generateICO(canvasOrCanvases) {
 
 async function buildFaviconPackZip(img, crop, baseName) {
     const packFiles = [];
+
+    // Multi-size ICO
     const icoCanvases = FAVICON_ICO_SIZES.map((size) => createCroppedSquareCanvas(img, crop, size));
     await yieldToUI();
     const icoBlob = await generateICO(icoCanvases);
     packFiles.push({ name: 'favicon.ico', blob: icoBlob });
 
+    // Standard square PNGs
     for (const spec of FAVICON_PNG_SPECS) {
         await yieldToUI();
         const canvas = createCroppedSquareCanvas(img, crop, spec.size);
@@ -1687,9 +1827,42 @@ async function buildFaviconPackZip(img, crop, baseName) {
         packFiles.push({ name: spec.name, blob });
     }
 
-    const manifestText = buildSiteWebManifest();
-    const manifestBlob = new Blob([manifestText], { type: 'application/manifest+json' });
-    packFiles.push({ name: 'site.webmanifest', blob: manifestBlob });
+    // Maskable Android icons (safe zone)
+    for (const spec of FAVICON_MASKABLE_SPECS) {
+        await yieldToUI();
+        const canvas = createMaskableSquareCanvas(img, crop, spec.size);
+        const blob = await canvasToPngBlob(canvas);
+        packFiles.push({ name: spec.name, blob });
+    }
+
+    // Windows mstile PNGs (+ 150×150 used by browserconfig)
+    for (const spec of FAVICON_MSTILE_SPECS) {
+        await yieldToUI();
+        const canvas = createMstileCanvas(img, crop, spec.width, spec.height);
+        const blob = await canvasToPngBlob(canvas);
+        packFiles.push({ name: spec.name, blob });
+    }
+
+    await yieldToUI();
+    const faviconSvg = await buildFaviconSvg(img, crop);
+    packFiles.push({ name: 'favicon.svg', blob: new Blob([faviconSvg], { type: 'image/svg+xml' }) });
+
+    await yieldToUI();
+    const safariSvg = await buildSafariPinnedTabSvg(img, crop);
+    packFiles.push({ name: 'safari-pinned-tab.svg', blob: new Blob([safariSvg], { type: 'image/svg+xml' }) });
+
+    packFiles.push({
+        name: 'site.webmanifest',
+        blob: new Blob([buildSiteWebManifest()], { type: 'application/manifest+json' })
+    });
+    packFiles.push({
+        name: 'browserconfig.xml',
+        blob: new Blob([buildBrowserconfigXml()], { type: 'application/xml' })
+    });
+    packFiles.push({
+        name: 'icons.html',
+        blob: new Blob([buildIconsHtmlSnippet()], { type: 'text/html' })
+    });
 
     const zip = new JSZip();
     for (const entry of packFiles) {
@@ -2593,4 +2766,4 @@ document.addEventListener('DOMContentLoaded', () => {
     initUI();
 });
 
-export { calculateDimensions, encodeImage, formatBatchProgressCount, noteBatchItemQueued, noteBatchItemFinished, resetBatchProgress, batchProgress, defaultSquareCrop, clampSquareCrop, buildSiteWebManifest, generateICO, getCropDisplayMetrics, FAVICON_ICO_SIZES, FAVICON_PNG_SPECS };
+export { calculateDimensions, encodeImage, formatBatchProgressCount, noteBatchItemQueued, noteBatchItemFinished, resetBatchProgress, batchProgress, defaultSquareCrop, clampSquareCrop, buildSiteWebManifest, buildBrowserconfigXml, buildIconsHtmlSnippet, createMaskableSquareCanvas, generateICO, getCropDisplayMetrics, FAVICON_ICO_SIZES, FAVICON_PNG_SPECS, FAVICON_MASKABLE_SPECS, FAVICON_MSTILE_SPECS, FAVICON_MASKABLE_SAFE_RATIO };
