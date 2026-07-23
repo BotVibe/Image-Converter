@@ -2766,4 +2766,4 @@ document.addEventListener('DOMContentLoaded', () => {
     initUI();
 });
 
-export { calculateDimensions, encodeImage, formatBatchProgressCount, noteBatchItemQueued, noteBatchItemFinished, resetBatchProgress, batchProgress, defaultSquareCrop, clampSquareCrop, buildSiteWebManifest, buildBrowserconfigXml, buildIconsHtmlSnippet, createMaskableSquareCanvas, generateICO, getCropDisplayMetrics, FAVICON_ICO_SIZES, FAVICON_PNG_SPECS, FAVICON_MASKABLE_SPECS, FAVICON_MSTILE_SPECS, FAVICON_MASKABLE_SAFE_RATIO };
+export { calculateDimensions, encodeImage, formatBatchProgressCount, noteBatchItemQueued, noteBatchItemFinished, resetBatchProgress, batchProgress, defaultSquareCrop, clampSquareCrop, buildSiteWebManifest, buildBrowserconfigXml, buildIconsHtmlSnippet, createMaskableSquareCanvas, createMstileCanvas, buildFaviconSvg, buildSafariPinnedTabSvg, buildFaviconPackZip, generateICO, getCropDisplayMetrics, FAVICON_ICO_SIZES, FAVICON_PNG_SPECS, FAVICON_MASKABLE_SPECS, FAVICON_MSTILE_SPECS, FAVICON_MASKABLE_SAFE_RATIO };

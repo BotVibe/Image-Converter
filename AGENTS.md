@@ -62,8 +62,8 @@ When interacting with this repository, AI agents must strictly adhere to the fol
 
 ## Testing
 
-- **Unit tests:** `npm test` runs Node.js tests in `tests/` via `run-tests.cjs`.
-- **E2E tests:** `npm run test:e2e` runs Playwright specs (`*.spec.js`) with an auto-started Vite dev server (`playwright.config.js`). Do not point Playwright at `tests/` — those are unit tests, not browser specs.
+- **Unit tests:** `npm test` runs Node.js tests in `tests/` via `run-tests.cjs`. Favicon Pack coverage includes crop math, manifest/browserconfig/`icons.html` strings, maskable safe-zone draw geometry, mstile centering, SVG builders, multi-size ICO headers, and full `buildFaviconPackZip` membership (via mocked `JSZip` / `FileReader.readAsDataURL`).
+- **E2E tests:** `npm run test:e2e` runs Playwright specs (`*.spec.js`) with an auto-started Vite dev server (`playwright.config.js`). Do not point Playwright at `tests/` — those are unit tests, not browser specs. Favicon Pack E2E asserts crop modal layout size and a `*-favicon.zip` download.
 - **Custom selects:** Native `<select>` elements are hidden and replaced by `setupCustomSelects()`. Each wrapper exposes `data-select-id` matching the original select's `id`, and options expose `data-value`. The trigger supports keyboard navigation (Enter/Space, Arrow keys, Escape) and ARIA attributes (`role="combobox"`, `aria-expanded`, etc.). E2E tests must interact with the custom UI, not `#formatSelect.selectOption()`.
 
 ## Modifying UI & i18n
