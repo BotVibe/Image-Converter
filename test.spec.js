@@ -123,3 +123,79 @@ test('Favicon Pack option opens square crop modal', async ({ page }) => {
     await expect(download).toBeVisible({ timeout: 15000 });
     await expect(download).toHaveAttribute('download', /icon-favicon\.zip$/);
 });
+
+const TINY_PNG = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64'
+);
+
+async function uploadPng(page, name = 'test.png') {
+    const fileChooserPromise = page.waitForEvent('filechooser');
+    await page.locator('#dropZone').click();
+    const fileChooser = await fileChooserPromise;
+    await fileChooser.setFiles({
+        name,
+        mimeType: 'image/png',
+        buffer: TINY_PNG
+    });
+}
+
+test('Download all as ZIP creates converted_images.zip', async ({ page }) => {
+    await page.goto('/');
+
+    await uploadPng(page, 'one.png');
+    await expect(page.locator('.result-item a[download]')).toBeVisible({ timeout: 15000 });
+
+    await uploadPng(page, 'two.png');
+    await expect(page.locator('.result-item')).toHaveCount(2, { timeout: 15000 });
+    await expect(page.locator('.result-item a[download]')).toHaveCount(2, { timeout: 15000 });
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.locator('#downloadZipBtn').click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe('converted_images.zip');
+});
+
+test('Theme preference persists across reload', async ({ page }) => {
+    await page.goto('/');
+
+    const root = page.locator('html');
+    const themeToggle = page.locator('#themeToggle');
+
+    // Force a known transition: if already light, click to dark then to light
+    const initial = await root.getAttribute('data-theme');
+    await themeToggle.click();
+    let desired = await root.getAttribute('data-theme');
+    if (desired === initial) {
+        await themeToggle.click();
+        desired = await root.getAttribute('data-theme');
+    }
+
+    await page.reload();
+    const afterReload = await root.getAttribute('data-theme');
+    expect(afterReload).toBe(desired);
+});
+
+test('Changing format recompresses and keeps download available', async ({ page }) => {
+    await page.goto('/');
+
+    await uploadPng(page, 'recompress.png');
+    const download = page.locator('.result-item a[download]');
+    await expect(download).toBeVisible({ timeout: 15000 });
+    // Default target format is WebP
+    await expect(download).toHaveAttribute('download', /\.webp$/i);
+
+    await chooseCustomSelectOption(page, 'formatSelect', 'image/jpeg');
+    await expect(page.locator('#qualitySlider')).toBeEnabled();
+
+    // Wait until recompress finishes: jpeg download, not stuck on Processing
+    await expect(page.locator('.status-processing')).toHaveCount(0, { timeout: 15000 });
+    await expect(page.locator('.result-item a[download]')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('.result-item a[download]')).toHaveAttribute('download', /\.jpe?g$/i);
+
+    await page.locator('#qualitySlider').fill('50');
+    await page.locator('#qualitySlider').dispatchEvent('change');
+    await expect(page.locator('.status-processing')).toHaveCount(0, { timeout: 15000 });
+    await expect(page.locator('.result-item a[download]')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('.result-item a[download]')).toHaveAttribute('download', /\.jpe?g$/i);
+});
