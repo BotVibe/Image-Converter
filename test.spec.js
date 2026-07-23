@@ -118,4 +118,8 @@ test('Favicon Pack option opens square crop modal', async ({ page }) => {
     const item = page.locator('.result-item');
     await expect(item).toBeVisible();
     await expect(page.locator('[data-i18n="cropEdit"]').first()).toBeVisible({ timeout: 15000 });
+
+    const download = page.locator('.result-item a[download]');
+    await expect(download).toBeVisible({ timeout: 15000 });
+    await expect(download).toHaveAttribute('download', /icon-favicon\.zip$/);
 });

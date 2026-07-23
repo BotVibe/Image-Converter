@@ -40,9 +40,12 @@ async function testFaviconPackHelpers() {
     assert(FAVICON_MASKABLE_SAFE_RATIO === 0.8, "Maskable safe zone ratio should be 80%");
 
     const browserconfig = buildBrowserconfigXml();
+    assert(browserconfig.includes('mstile-70x70.png'), "browserconfig should reference 70 tile");
     assert(browserconfig.includes('mstile-150x150.png'), "browserconfig should reference 150 tile");
     assert(browserconfig.includes('mstile-310x150.png'), "browserconfig should reference wide tile");
+    assert(browserconfig.includes('mstile-310x310.png'), "browserconfig should reference 310 tile");
     assert(browserconfig.includes('<browserconfig>'), "browserconfig should wrap msapplication tile");
+    assert(browserconfig.includes('<TileColor>'), "browserconfig should include TileColor");
 
     const iconsHtml = buildIconsHtmlSnippet();
     assert(iconsHtml.includes('favicon.svg'), "icons.html should link SVG favicon");
@@ -50,11 +53,28 @@ async function testFaviconPackHelpers() {
     assert(iconsHtml.includes('site.webmanifest'), "icons.html should link webmanifest");
     assert(iconsHtml.includes('browserconfig.xml'), "icons.html should link browserconfig");
     assert(iconsHtml.includes('favicon-48x48.png') && iconsHtml.includes('favicon-96x96.png'), "icons.html should link 48/96 PNGs");
+    assert(iconsHtml.includes('apple-touch-icon.png'), "icons.html should link apple-touch-icon");
+    assert(iconsHtml.includes('rel="mask-icon"'), "icons.html should include Safari mask-icon link");
 
-    // Maskable canvas keeps target size and draws into safe zone
+    // Maskable canvas: size + safe-zone drawImage destination
     const fakeImg = { width: 100, height: 100 };
     const maskable = createMaskableSquareCanvas(fakeImg, { sx: 0, sy: 0, size: 100 }, 192, 0.8);
     assert(maskable.width === 192 && maskable.height === 192, "Maskable canvas should be 192x192");
+    assert(maskable._drawCalls && maskable._drawCalls.length >= 1, "Maskable canvas should draw the crop");
+    const maskDraw = maskable._drawCalls[maskable._drawCalls.length - 1];
+    const expectedContent = Math.round(192 * 0.8);
+    const expectedOffset = Math.round((192 - expectedContent) / 2);
+    assert(maskDraw[5] === expectedOffset && maskDraw[6] === expectedOffset, "Maskable content should be centered");
+    assert(maskDraw[7] === expectedContent && maskDraw[8] === expectedContent, "Maskable content should use 80% safe zone");
+
+    // Mstile square + wide centering
+    const tileSq = createMstileCanvas(fakeImg, { sx: 0, sy: 0, size: 100 }, 150, 150);
+    assert(tileSq.width === 150 && tileSq.height === 150, "Square mstile should be 150x150");
+    const tileWide = createMstileCanvas(fakeImg, { sx: 10, sy: 10, size: 80 }, 310, 150);
+    assert(tileWide.width === 310 && tileWide.height === 150, "Wide mstile should be 310x150");
+    const wideDraw = tileWide._drawCalls[tileWide._drawCalls.length - 1];
+    assert(wideDraw[5] === Math.round((310 - 150) / 2), "Wide mstile icon should be horizontally centered");
+    assert(wideDraw[6] === 0 && wideDraw[7] === 150 && wideDraw[8] === 150, "Wide mstile should use full height square");
 
     // Display metrics must use real stage size (hidden/0-size stages are the crop-modal bug)
     const stageOk = {
@@ -94,6 +114,45 @@ async function testFaviconPackHelpers() {
     assert(view.getUint8(7) === 16, "First directory height should be 16");
     assert(view.getUint8(22) === 32, "Second directory width should be 32");
     assert(view.getUint8(23) === 32, "Second directory height should be 32");
+
+    // SVG builders
+    const svg = await buildFaviconSvg(fakeImg, { sx: 0, sy: 0, size: 100 });
+    assert(svg.includes('viewBox="0 0 512 512"'), "favicon.svg should use 512 viewBox");
+    assert(svg.includes('<image'), "favicon.svg should embed an image");
+    assert(svg.includes('data:image/png') || svg.includes(';base64,'), "favicon.svg should embed PNG data URL");
+
+    const safariSvg = await buildSafariPinnedTabSvg(fakeImg, { sx: 0, sy: 0, size: 100 });
+    assert(safariSvg.includes('viewBox="0 0 128 128"'), "safari-pinned-tab.svg should use 128 viewBox");
+    assert(safariSvg.includes('<image'), "safari-pinned-tab.svg should embed silhouette image");
+    assert(safariSvg.includes('data:image/png') || safariSvg.includes(';base64,'), "safari-pinned-tab.svg should embed PNG data URL");
+
+    // Full pack ZIP membership
+    const pack = await buildFaviconPackZip(fakeImg, { sx: 0, sy: 0, size: 100 }, 'logo.png');
+    assert(pack.zipName === 'logo-favicon.zip', "ZIP name should be basename-favicon.zip");
+    assert(pack.folderName === 'logo-favicon', "Folder name should be basename-favicon");
+    assert(pack.zipBlob && pack.zipBlob.type === 'application/zip', "Should return a ZIP blob");
+
+    const names = pack.packFiles.map((f) => f.name).sort();
+    const expected = [
+        'favicon.ico',
+        ...FAVICON_PNG_SPECS.map((s) => s.name),
+        ...FAVICON_MASKABLE_SPECS.map((s) => s.name),
+        ...FAVICON_MSTILE_SPECS.map((s) => s.name),
+        'favicon.svg',
+        'safari-pinned-tab.svg',
+        'site.webmanifest',
+        'browserconfig.xml',
+        'icons.html'
+    ].sort();
+    assert(names.length === expected.length, "Pack should contain " + expected.length + " files (got " + names.length + ")");
+    for (const name of expected) {
+        assert(names.includes(name), "Pack should include " + name);
+    }
+
+    const htmlEntry = pack.packFiles.find((f) => f.name === 'icons.html');
+    assert(htmlEntry && htmlEntry.blob && htmlEntry.blob.type === 'text/html', "icons.html entry should be text/html");
+    const svgEntry = pack.packFiles.find((f) => f.name === 'favicon.svg');
+    assert(svgEntry && svgEntry.blob && svgEntry.blob.type === 'image/svg+xml', "favicon.svg entry should be image/svg+xml");
 
     console.log("✅ All favicon pack helper tests passed!");
 }

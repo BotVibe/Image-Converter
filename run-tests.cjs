@@ -119,19 +119,24 @@ const mockDocument = {
         if (el.tagName === 'CANVAS') {
             el.width = 0;
             el.height = 0;
+            el._drawCalls = [];
             el.getContext = () => ({
-                drawImage() {},
+                drawImage(...args) { el._drawCalls.push(args); },
                 fillRect() {},
                 clearRect() {},
                 putImageData() {},
                 getImageData(x, y, w, h) {
                     const width = w || el.width || 1;
                     const height = h || el.height || 1;
-                    return {
-                        data: new Uint8ClampedArray(width * height * 4),
-                        width,
-                        height
-                    };
+                    // Semi-opaque mid-gray so safari silhouette tests have pixels to decide on
+                    const data = new Uint8ClampedArray(width * height * 4);
+                    for (let i = 0; i < data.length; i += 4) {
+                        data[i] = 40;
+                        data[i + 1] = 40;
+                        data[i + 2] = 40;
+                        data[i + 3] = 255;
+                    }
+                    return { data, width, height };
                 }
             });
             el.toBlob = (cb, type) => {
@@ -186,22 +191,57 @@ const runner = async (document, navigator, window, URL) => {
     }
     class Blob {
         constructor(parts, options) {
-            this._buffer = parts[0];
-            this.size = parts[0] ? parts[0].byteLength : 0;
+            const part = parts && parts.length ? parts[0] : null;
+            if (typeof part === 'string') {
+                const text = parts.join('');
+                this._text = text;
+                this._buffer = typeof TextEncoder !== 'undefined'
+                    ? new TextEncoder().encode(text).buffer
+                    : Buffer.from(text).buffer;
+                this.size = this._buffer.byteLength;
+            } else if (part && part.byteLength != null) {
+                this._buffer = part;
+                this.size = part.byteLength;
+            } else {
+                this._buffer = new ArrayBuffer(0);
+                this.size = 0;
+            }
             this.type = options ? options.type : '';
         }
     }
     class FileReader {
+        readAsDataURL(blob) {
+            setTimeout(() => {
+                this.result = 'data:' + (blob.type || 'application/octet-stream') + ';base64,AAAA';
+                if (this.onload) {
+                    this.onload({ target: this });
+                }
+            }, 0);
+        }
         readAsArrayBuffer(blob) {
             setTimeout(() => {
-                if (this.onload) this.onload({ target: { result: blob._buffer } });
+                this.result = blob._buffer;
+                if (this.onload) this.onload({ target: this });
             }, 0);
         }
         readAsText(blob) {
             setTimeout(() => {
                 // very simple mock for text since we just test PDF/TXT/SVG
-                if (this.onload) this.onload({ target: { result: new TextDecoder().decode(blob._buffer) } });
+                this.result = new TextDecoder().decode(blob._buffer);
+                if (this.onload) this.onload({ target: this });
             }, 0);
+        }
+    }
+    class JSZip {
+        constructor() {
+            this.files = {};
+        }
+        file(name, data) {
+            this.files[name] = data;
+            return this;
+        }
+        async generateAsync() {
+            return new Blob([new ArrayBuffer(8)], { type: 'application/zip' });
         }
     }
     const matchMedia = () => ({ matches: false });
