@@ -100,6 +100,17 @@ test('Favicon Pack option opens square crop modal', async ({ page }) => {
     const cropModal = page.locator('#cropModal');
     await expect(cropModal).toBeVisible();
     await expect(page.locator('#cropSelection')).toBeVisible();
+    await expect(page.locator('#cropImage')).toBeVisible();
+
+    // Layout must happen after the modal is visible (regression: 0×0 stage → tiny top-left crop)
+    await expect.poll(async () => {
+        const box = await page.locator('#cropSelection').boundingBox();
+        return box ? Math.min(box.width, box.height) : 0;
+    }).toBeGreaterThan(40);
+    await expect.poll(async () => {
+        const box = await page.locator('#cropImage').boundingBox();
+        return box ? Math.min(box.width, box.height) : 0;
+    }).toBeGreaterThan(40);
 
     await page.locator('#cropConfirmBtn').click();
     await expect(cropModal).toBeHidden();

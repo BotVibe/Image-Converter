@@ -1706,14 +1706,18 @@ async function buildFaviconPackZip(img, crop, baseName) {
 }
 
 function getCropDisplayMetrics(stageEl, naturalWidth, naturalHeight) {
-    const stageW = stageEl.clientWidth || 1;
-    const stageH = stageEl.clientHeight || 1;
-    const scale = Math.min(stageW / naturalWidth, stageH / naturalHeight);
-    const width = naturalWidth * scale;
-    const height = naturalHeight * scale;
+    const nw = Math.max(1, naturalWidth || 1);
+    const nh = Math.max(1, naturalHeight || 1);
+    // Prefer getBoundingClientRect once visible; fall back to client size
+    const rect = stageEl.getBoundingClientRect();
+    const stageW = Math.max(1, rect.width || stageEl.clientWidth || 0);
+    const stageH = Math.max(1, rect.height || stageEl.clientHeight || 0);
+    const scale = Math.min(stageW / nw, stageH / nh);
+    const width = nw * scale;
+    const height = nh * scale;
     const left = (stageW - width) / 2;
     const top = (stageH - height) / 2;
-    return { left, top, width, height, scale };
+    return { left, top, width, height, scale, stageW, stageH };
 }
 
 function syncCropSelectionUI() {
@@ -1728,11 +1732,29 @@ function syncCropSelectionUI() {
 
     const left = cropDisplay.left + (cropWorking.sx * cropDisplay.scale);
     const top = cropDisplay.top + (cropWorking.sy * cropDisplay.scale);
-    const size = cropWorking.size * cropDisplay.scale;
+    const size = Math.max(8, cropWorking.size * cropDisplay.scale);
     selection.style.left = `${left}px`;
     selection.style.top = `${top}px`;
     selection.style.width = `${size}px`;
     selection.style.height = `${size}px`;
+}
+
+/**
+ * Show modal first, then measure stage (hidden elements report 0×0).
+ * Retries a couple of frames if layout is not ready yet.
+ */
+function layoutCropModal(stage, naturalWidth, naturalHeight, onReady) {
+    const attempt = (remaining) => {
+        cropDisplay = getCropDisplayMetrics(stage, naturalWidth, naturalHeight);
+        const usable = cropDisplay.stageW >= 32 && cropDisplay.stageH >= 32 && cropDisplay.scale > 0;
+        if (usable || remaining <= 0) {
+            syncCropSelectionUI();
+            if (typeof onReady === 'function') onReady();
+            return;
+        }
+        requestAnimationFrame(() => attempt(remaining - 1));
+    };
+    requestAnimationFrame(() => attempt(4));
 }
 
 function closeCropModal(result) {
@@ -1750,6 +1772,24 @@ function closeCropModal(result) {
     }
     cropPreviousFocus = null;
     if (resolver) resolver(result);
+}
+
+function paintCropSourceToImage(imageEl, img) {
+    // Prefer drawing the already-decoded bitmap/image so preview always matches processImage
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, img.width || 1);
+    c.height = Math.max(1, img.height || 1);
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    return new Promise((resolve, reject) => {
+        c.toBlob((blob) => {
+            if (!blob) {
+                reject(new Error('Failed to paint crop preview'));
+                return;
+            }
+            resolve(URL.createObjectURL(blob));
+        }, 'image/png');
+    });
 }
 
 function openSquareCropModal(id, img, existingCrop = null) {
@@ -1774,8 +1814,6 @@ function openSquareCropModal(id, img, existingCrop = null) {
 
         cropPreviousFocus = document.activeElement;
 
-        // Prefer object URL from original file when available for <img>
-        const file = originalFiles.get(id);
         let objectUrl = null;
         const cleanupUrl = () => {
             if (objectUrl) {
@@ -1785,11 +1823,18 @@ function openSquareCropModal(id, img, existingCrop = null) {
         };
 
         const finishOpen = () => {
-            cropDisplay = getCropDisplayMetrics(stage, cropNatural.width, cropNatural.height);
-            syncCropSelectionUI();
+            // Must become visible BEFORE measuring — otherwise clientWidth/Height are 0
             modal.classList.remove('hidden');
             modal.hidden = false;
-            confirmBtn.focus();
+            layoutCropModal(stage, cropNatural.width, cropNatural.height, () => {
+                confirmBtn.focus();
+            });
+        };
+
+        const originalResolver = cropModalResolver;
+        cropModalResolver = (result) => {
+            cleanupUrl();
+            originalResolver(result);
         };
 
         imageEl.onload = () => {
@@ -1802,36 +1847,34 @@ function openSquareCropModal(id, img, existingCrop = null) {
         };
         imageEl.onerror = () => {
             cleanupUrl();
-            // Fallback: draw bitmap to canvas data URL
-            try {
-                const c = document.createElement('canvas');
-                c.width = img.width;
-                c.height = img.height;
-                c.getContext('2d').drawImage(img, 0, 0);
-                imageEl.src = c.toDataURL('image/png');
-            } catch (e) {
+            closeCropModal(null);
+        };
+
+        // Always paint from the decoded source used by the pipeline (ImageBitmap/HTMLImageElement)
+        paintCropSourceToImage(imageEl, img).then((url) => {
+            // Guard: modal may have been cancelled while painting
+            if (!cropModalResolver) {
+                URL.revokeObjectURL(url);
+                return;
+            }
+            objectUrl = url;
+            imageEl.src = url;
+            if (imageEl.complete && imageEl.naturalWidth) {
+                imageEl.onload();
+            }
+        }).catch(() => {
+            // Last resort: original file blob URL
+            const file = originalFiles.get(id);
+            if (file) {
+                objectUrl = URL.createObjectURL(file);
+                imageEl.src = objectUrl;
+                if (imageEl.complete && imageEl.naturalWidth) {
+                    imageEl.onload();
+                }
+            } else {
                 closeCropModal(null);
             }
-        };
-
-        if (file) {
-            objectUrl = URL.createObjectURL(file);
-            imageEl.src = objectUrl;
-        } else {
-            imageEl.onerror();
-        }
-
-        // Revoke object URL when modal closes
-        const originalResolver = cropModalResolver;
-        cropModalResolver = (result) => {
-            cleanupUrl();
-            originalResolver(result);
-        };
-
-        // If image already cached in element
-        if (imageEl.complete && imageEl.naturalWidth) {
-            imageEl.onload();
-        }
+        });
     });
 
     const queued = cropModalChain.then(run, run);
@@ -1911,6 +1954,9 @@ function setupCropModal() {
             startY: pos.y,
             startCrop: { ...cropWorking }
         };
+        if (selection.setPointerCapture) {
+            try { selection.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+        }
         window.addEventListener('pointermove', onPointerMove);
         window.addEventListener('pointerup', onPointerUp);
         window.addEventListener('pointercancel', onPointerUp);
@@ -1918,8 +1964,7 @@ function setupCropModal() {
 
     window.addEventListener('resize', () => {
         if (modal.classList.contains('hidden')) return;
-        cropDisplay = getCropDisplayMetrics(stage, cropNatural.width, cropNatural.height);
-        syncCropSelectionUI();
+        layoutCropModal(stage, cropNatural.width, cropNatural.height);
     });
 
     const confirm = () => {
@@ -1943,6 +1988,16 @@ function setupCropModal() {
         } else if (e.key === 'Enter' && e.target !== cancelBtn) {
             e.preventDefault();
             confirm();
+        } else if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+            e.preventDefault();
+            const step = e.shiftKey ? 10 : 1;
+            let { sx, sy, size } = cropWorking;
+            if (e.key === 'ArrowLeft') sx -= step;
+            if (e.key === 'ArrowRight') sx += step;
+            if (e.key === 'ArrowUp') sy -= step;
+            if (e.key === 'ArrowDown') sy += step;
+            cropWorking = clampSquareCrop({ sx, sy, size }, cropNatural.width, cropNatural.height);
+            syncCropSelectionUI();
         }
     });
 }
@@ -2538,4 +2593,4 @@ document.addEventListener('DOMContentLoaded', () => {
     initUI();
 });
 
-export { calculateDimensions, encodeImage, formatBatchProgressCount, noteBatchItemQueued, noteBatchItemFinished, resetBatchProgress, batchProgress, defaultSquareCrop, clampSquareCrop, buildSiteWebManifest, generateICO, FAVICON_ICO_SIZES, FAVICON_PNG_SPECS };
+export { calculateDimensions, encodeImage, formatBatchProgressCount, noteBatchItemQueued, noteBatchItemFinished, resetBatchProgress, batchProgress, defaultSquareCrop, clampSquareCrop, buildSiteWebManifest, generateICO, getCropDisplayMetrics, FAVICON_ICO_SIZES, FAVICON_PNG_SPECS };

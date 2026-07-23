@@ -30,6 +30,25 @@ async function testFaviconPackHelpers() {
     assert(Array.isArray(FAVICON_ICO_SIZES) && FAVICON_ICO_SIZES.join(',') === '16,32,48,256', "ICO size list should match plan");
     assert(FAVICON_PNG_SPECS.some((s) => s.size === 180 && s.name === 'apple-touch-icon.png'), "PNG specs should include apple-touch-icon");
 
+    // Display metrics must use real stage size (hidden/0-size stages are the crop-modal bug)
+    const stageOk = {
+        getBoundingClientRect: () => ({ width: 400, height: 400 }),
+        clientWidth: 400,
+        clientHeight: 400
+    };
+    const metrics = getCropDisplayMetrics(stageOk, 200, 100);
+    assert(Math.abs(metrics.scale - 2) < 0.001, "Scale should fit 200x100 into 400x400 (=2)");
+    assert(Math.abs(metrics.width - 400) < 0.001 && Math.abs(metrics.height - 200) < 0.001, "Displayed image size should be 400x200");
+    assert(Math.abs(metrics.left - 0) < 0.001 && Math.abs(metrics.top - 100) < 0.001, "Image should be vertically centered");
+
+    const stageTiny = {
+        getBoundingClientRect: () => ({ width: 0, height: 0 }),
+        clientWidth: 0,
+        clientHeight: 0
+    };
+    const fallbackMetrics = getCropDisplayMetrics(stageTiny, 100, 100);
+    assert(fallbackMetrics.stageW === 1 && fallbackMetrics.stageH === 1, "Zero-size stage should fall back to 1x1");
+
     // Multi-size ICO header
     const c16 = document.createElement('canvas');
     c16.width = 16;
