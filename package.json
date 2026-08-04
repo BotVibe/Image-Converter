@@ -2,7 +2,7 @@
   "name": "app",
   "version": "1.0.0",
   "description": "A simple, fast, and 100% privacy-compliant image converter built entirely with Vanilla JavaScript, HTML, and CSS. The tool runs completely in the browser without sending any data to external servers.",
-  "main": "app.js",
+  "private": true,
   "scripts": {
     "test": "node run-tests.cjs",
     "test:e2e": "playwright test",
