@@ -66,6 +66,28 @@ To enable it:
 2. Navigate to **Pages** in the left sidebar.
 3. Under **Build and deployment -> Source**, select **GitHub Actions**.
 
+### Self-Hosting (Dokploy, Railpack, Docker)
+
+This is a **static** browser bundle, not a Node service. `app.js` uses bare imports (`@jsquash/*`) that only Vite can resolve, so running it directly fails:
+
+```
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/app/node_modules/@jsquash/avif/encode'
+```
+
+If a platform tries to `node app.js`, it auto-detected this as a Node service. Always build with Vite and serve `dist/` as static files. Two supported paths:
+
+**Railpack** (zero-config) — Railpack detects Vite and serves the build output with Caddy. The repo ships a `Caddyfile` that replaces Railpack's default one. Set the container/exposed port to **80** (the `Caddyfile` honours `$PORT` if the platform injects one) and, if SPA mode is not picked up automatically, set `RAILPACK_SPA_OUTPUT_DIR=dist`.
+
+**Docker** (full control) — the repo ships a multi-stage `Dockerfile` (Vite build → nginx) plus `nginx.conf`. Container port **80**.
+
+Both configs set the same three things, which matter for this app:
+
+- **Cross-origin isolation** (`Cross-Origin-Opener-Policy: same-origin` + `Cross-Origin-Embedder-Policy: require-corp`) enables `SharedArrayBuffer`, which unlocks the **multithreaded AVIF encoder**. GitHub Pages cannot set headers, so it always runs single-threaded there. This is safe because the app loads no cross-origin subresources.
+- **Compression + `application/wasm`** — the AVIF encoder is ~3.4 MB raw / ~1.1 MB gzipped, and `WebAssembly.instantiateStreaming` rejects any other MIME type.
+- **No SPA fallback** — the app has no client-side routing, so missing files must return 404 rather than silently serving `index.html`.
+
+If you move the primary domain off GitHub Pages, also update the absolute `canonical`, `og:url`, and `og:image` URLs in `index.html`.
+
 ### Optional Assets
 - Fonts: `Inter-Regular.woff2` and `PlusJakartaSans-Bold.woff2` ship in `fonts/` (referenced as `./fonts/...` from `style.css`). Keep them there — **not** in `public/` — so Vite rewrites the URLs at build time; files copied verbatim from `public/` are not rewritten and 404 in the bundled CSS. Heavier weights (600/800) are synthesized by the browser from these faces; drop in real `Inter-SemiBold.woff2` / `PlusJakartaSans-ExtraBold.woff2` plus matching `@font-face` blocks if you want true cuts. Without any font files, the UI falls back to system fonts.
 - Social preview: `og-image.jpg` is referenced in meta tags but is optional; add it under the site root / `public/` if you want rich link previews.

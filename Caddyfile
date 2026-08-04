@@ -1,0 +1,67 @@
+# Railpack detects Vite and serves the build output as a static site with Caddy.
+# This file replaces Railpack's default Caddyfile so the app gets cross-origin
+# isolation (and so missing assets 404 instead of falling back to index.html).
+#
+# Not used by the Dockerfile build — that path uses nginx.conf instead.
+{
+	admin off
+	persist_config off
+	auto_https off
+}
+
+# Railpack/Dokploy inject PORT; fall back to 80 so the container port is
+# predictable when they do not.
+:{$PORT:80} {
+	root * {$RAILPACK_SPA_OUTPUT_DIR:dist}
+	file_server
+
+	# Cross-origin isolation. Unlocks SharedArrayBuffer, which @jsquash needs for
+	# the multithreaded AVIF encoder (assets/avif_enc_mt.wasm + its worker).
+	# GitHub Pages cannot set headers, so it always ran single-threaded there.
+	# Safe here: the app is privacy-first and loads no cross-origin subresources.
+	header {
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Embedder-Policy "require-corp"
+		Cross-Origin-Resource-Policy "same-origin"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		# Drop Caddy's default server banner.
+		-Server
+	}
+
+	# Guarantee the WASM MIME type rather than relying on the platform table;
+	# WebAssembly.instantiateStreaming rejects anything but application/wasm.
+	@wasm path *.wasm
+	header @wasm Content-Type "application/wasm"
+
+	# Vite fingerprints everything under assets/, so it can be cached forever.
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+
+	# index.html must not be cached, or clients pin stale asset hashes.
+	@html path / /index.html
+	header @html Cache-Control "no-cache"
+
+	# The .wasm payloads are ~3.4 MB raw / ~1.1 MB gzipped. The match list is
+	# explicit so application/wasm is definitely included.
+	encode {
+		zstd
+		gzip
+		match {
+			header Content-Type text/*
+			header Content-Type application/json*
+			header Content-Type application/javascript*
+			header Content-Type application/wasm*
+			header Content-Type application/manifest+json*
+			header Content-Type image/svg+xml*
+		}
+	}
+
+	# Deliberately no `try_files {path} /index.html`: this app has no client-side
+	# routing, and an SPA catch-all turns missing assets into silent HTTP 200s
+	# serving HTML — which is exactly how the webfont 404 stayed hidden.
+
+	log {
+		output stdout
+	}
+}

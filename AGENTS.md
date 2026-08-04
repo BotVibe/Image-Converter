@@ -60,6 +60,14 @@ When interacting with this repository, AI agents must strictly adhere to the fol
 - `public/jszip.min.js`: Locally hosted dependency for generating ZIP archives, served statically by Vite (copied verbatim to the dist root — correct here, since `index.html` loads it via `<script src="/jszip.min.js">`, which Vite rewrites to the base-relative `./jszip.min.js` at build time).
 - `fonts/`: Optional `.woff2` webfonts referenced from `style.css`. Must **not** move to `public/` (see the `style.css` note above).
 - `tests/`: Node-runnable unit tests assembled by `run-tests.cjs` (`npm test`). The Deploy workflow (`.github/workflows/deploy.yml`) must run `npm test` before `vite build`.
+- `Dockerfile` / `nginx.conf` / `Caddyfile` / `.dockerignore`: self-hosting (Dokploy, Railpack, plain Docker). `nginx.conf` serves the Docker path, `Caddyfile` replaces Railpack's default when it serves the Vite output. **Keep the two in sync** — they must set the same headers.
+
+## Deployment
+
+- `app.js` is **browser** source with bare `@jsquash/*` imports that only Vite resolves. It must never be executed by Node: `node app.js` fails with `ERR_MODULE_NOT_FOUND`. Do not add a `start` script or a `main` field that points at it — that is what makes platforms auto-detect this as a Node service instead of a static site. `package.json` is marked `"private": true` and intentionally has no `main`.
+- Serving configs must set `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`. This enables `SharedArrayBuffer` and therefore the multithreaded AVIF encoder (`avif_enc_mt.wasm` + worker). It is only safe because the app loads no cross-origin subresources — adding one would break the page under COEP, which is a further reason to keep the no-external-requests rule.
+- `.wasm` must be served as `application/wasm` (required by `WebAssembly.instantiateStreaming`) and compressed (~3.4 MB → ~1.1 MB).
+- **Never add an SPA fallback** (`try_files ... /index.html`). There is no client-side routing, and a catch-all converts missing assets into HTTP 200s serving HTML — the failure mode that hid the webfont 404 for so long.
 
 ## Testing
 
