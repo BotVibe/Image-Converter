@@ -12,7 +12,12 @@
 # Railpack/Dokploy inject PORT; fall back to 80 so the container port is
 # predictable when they do not.
 :{$PORT:80} {
-	root * {$RAILPACK_SPA_OUTPUT_DIR:dist}
+	# Absolute on purpose. Railpack's own template uses a build-time variable
+	# ({{.DIST_DIR}}) that is not expanded in a user-supplied Caddyfile — this file
+	# is copied verbatim — and a relative path would resolve against Caddy's
+	# working directory, which is not guaranteed to be /app. Railpack builds in
+	# /app and copies /app/dist into the runtime image.
+	root * {$STATIC_PATH:/app/dist}
 	file_server
 
 	# Cross-origin isolation. Unlocks SharedArrayBuffer, which @jsquash needs for
