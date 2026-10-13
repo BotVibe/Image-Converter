@@ -59,7 +59,7 @@ When interacting with this repository, AI agents must strictly adhere to the fol
   - Only auto-fills width/height inputs when they are empty (does not overwrite user-set limits on later uploads). Favicon Pack disables width/height/aspect/quality controls.
 - `public/jszip.min.js`: Locally hosted dependency for generating ZIP archives, served statically by Vite (copied verbatim to the dist root — correct here, since `index.html` loads it via `<script src="/jszip.min.js">`, which Vite rewrites to the base-relative `./jszip.min.js` at build time).
 - `fonts/`: Optional `.woff2` webfonts referenced from `style.css`. Must **not** move to `public/` (see the `style.css` note above).
-- `tests/`: Node-runnable unit tests assembled by `run-tests.cjs` (`npm test`). The Deploy workflow (`.github/workflows/deploy.yml`) must run `npm test` before `vite build`.
+- `tests/`: Node-runnable unit tests assembled by `run-tests.cjs` (`npm test`). The Test workflow (`.github/workflows/test.yml`) runs `npm test` and the Playwright E2E suite on every push/PR.
 - `Dockerfile` / `nginx.conf` / `Caddyfile` / `.dockerignore`: self-hosting (Dokploy, Railpack, plain Docker). `nginx.conf` serves the Docker path, `Caddyfile` replaces Railpack's default when it serves the Vite output. **Keep the two in sync** — they must set the same headers.
 
 ## Deployment
