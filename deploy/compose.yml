@@ -1,0 +1,29 @@
+# Image Converter behind the shared Caddy reverse proxy on the `web` network.
+# Purely static (nginx serving the Vite build); all image processing happens in
+# the browser, so no uploads reach the server, no env vars, no volumes.
+# No host ports are published — TLS and routing live on the proxy.
+#
+# Prerequisites:
+#   docker network create web   # once, if it does not exist
+#
+# Usage:
+#   cd deploy && docker compose pull && docker compose up -d
+#
+# Point Caddy at container `image-converter:80`.
+
+services:
+  image-converter:
+    image: ghcr.io/botvibe/image-converter:main
+    container_name: image-converter
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    networks:
+      - web
+
+networks:
+  web:
+    external: true
