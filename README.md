@@ -21,7 +21,7 @@ A simple, fast, and 100% privacy-compliant image converter built entirely with V
 - **Item Management:** Individually remove processed, invalid, or failed images from the list if you decide not to keep them.
 - **Bulk Download:** Download converted images individually or bundled as a ZIP file.
 - **Light & Dark Themes:** Toggle between light and dark Neobrutalist themes. The choice is stored in `localStorage` (and falls back to `prefers-color-scheme` on first visit).
-- **Refined Neobrutalism Design:** Features a refined Neobrutalist dark theme (using a softer slate `#1e293b` background, dark `#0f172a` hard shadows, and `#b6f228` accents) with fully styled native elements and physical click effects. Inter and Plus Jakarta Sans are bundled from `fonts/` and processed by Vite, so the build emits hashed copies next to the CSS and they resolve correctly on GitHub Pages project sites; system fonts are used if the files are not present.
+- **Refined Neobrutalism Design:** Features a refined Neobrutalist dark theme (using a softer slate `#1e293b` background, dark `#0f172a` hard shadows, and `#b6f228` accents) with fully styled native elements and physical click effects. Inter and Plus Jakarta Sans are bundled from `fonts/` and processed by Vite, so the build emits hashed copies next to the CSS and they resolve correctly under any base path; system fonts are used if the files are not present.
 - **100% Privacy:** All processing happens client-side. The required `JSZip` library is hosted locally, ensuring absolutely zero external network requests or tracking. Theme/language preferences stay in local storage only. An explanation of how this works is explicitly shown in the UI.
 - **Multilingual UI:** Supports English, German, French, and Italian with auto-detection based on browser language (remembered via `localStorage`).
 - **Input Validation:** Files are checked by extension and magic bytes (or SVG heuristics) before processing.
@@ -57,14 +57,10 @@ npm test          # Unit tests (Node.js)
 npm run test:e2e  # End-to-end tests (Playwright)
 npm run test:all  # Both test suites
 ```
-Unit tests also run in the Deploy workflow before the production build. E2E tests run via the dedicated Test workflow (`.github/workflows/test.yml`) on push/PR.
+Unit tests and E2E tests run via the dedicated Test workflow (`.github/workflows/test.yml`) on push/PR.
 
-### Automated Deployment (GitHub Pages)
-This repository includes a GitHub Action (`.github/workflows/deploy.yml`) that runs unit tests (`npm test`), builds with Vite, and deploys to GitHub Pages whenever changes are pushed to the `main` branch.
-To enable it:
-1. Go to your repository settings on GitHub.
-2. Navigate to **Pages** in the left sidebar.
-3. Under **Build and deployment -> Source**, select **GitHub Actions**.
+### Production
+Production runs at **https://image.rosentreter.site** (Docker image from GHCR behind Caddy, see "Production deploy" below). GitHub Pages is no longer used.
 
 ### Self-Hosting (Dokploy, Railpack, Docker)
 
@@ -82,11 +78,11 @@ If a platform tries to `node app.js`, it auto-detected this as a Node service. A
 
 Both configs set the same three things, which matter for this app:
 
-- **Cross-origin isolation** (`Cross-Origin-Opener-Policy: same-origin` + `Cross-Origin-Embedder-Policy: require-corp`) enables `SharedArrayBuffer`, which unlocks the **multithreaded AVIF encoder**. GitHub Pages cannot set headers, so it always runs single-threaded there. This is safe because the app loads no cross-origin subresources.
+- **Cross-origin isolation** (`Cross-Origin-Opener-Policy: same-origin` + `Cross-Origin-Embedder-Policy: require-corp`) enables `SharedArrayBuffer`, which unlocks the **multithreaded AVIF encoder**. (GitHub Pages, the former host, could not set these headers.) This is safe because the app loads no cross-origin subresources.
 - **Compression + `application/wasm`** — the AVIF encoder is ~3.4 MB raw / ~1.1 MB gzipped, and `WebAssembly.instantiateStreaming` rejects any other MIME type.
 - **No SPA fallback** — the app has no client-side routing, so missing files must return 404 rather than silently serving `index.html`.
 
-If you move the primary domain off GitHub Pages, also update the absolute `canonical`, `og:url`, and `og:image` URLs in `index.html`.
+If the primary domain changes, also update the absolute `canonical`, `og:url`, and `og:image` URLs in `index.html`.
 
 ### Optional Assets
 - Fonts: `Inter-Regular.woff2` and `PlusJakartaSans-Bold.woff2` ship in `fonts/` (referenced as `./fonts/...` from `style.css`). Keep them there — **not** in `public/` — so Vite rewrites the URLs at build time; files copied verbatim from `public/` are not rewritten and 404 in the bundled CSS. Heavier weights (600/800) are synthesized by the browser from these faces; drop in real `Inter-SemiBold.woff2` / `PlusJakartaSans-ExtraBold.woff2` plus matching `@font-face` blocks if you want true cuts. Without any font files, the UI falls back to system fonts.
