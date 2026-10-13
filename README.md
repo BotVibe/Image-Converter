@@ -103,3 +103,10 @@ If you move the primary domain off GitHub Pages, also update the absolute `canon
 - **Chrome / Edge / Opera:** Full support.
 - **Firefox:** Full support.
 - **Safari:** Full support (Using WebAssembly Polyfill for AVIF when native encoding is unavailable).
+
+## Production deploy (Docker / GHCR)
+
+- `.github/workflows/docker-publish.yml` builds the root `Dockerfile` on every PR (build only) and pushes `ghcr.io/botvibe/image-converter:main` (+ `sha-<short>`) on every push to `main`.
+- The image is nginx serving the Vite `dist/` with cross-origin isolation headers, a `/healthz` endpoint (Docker `HEALTHCHECK`) and an `X-App-Revision` header carrying the commit SHA (also the `org.opencontainers.image.revision` label).
+- `deploy/compose.yml` runs the container on the shared external `web` network without host ports; the shared Caddy proxy terminates TLS (e.g. `image.rosentreter.site { reverse_proxy image-converter:80 }`).
+- No server-side state: images never leave the browser, so no volumes, env vars or upload limits are needed.

@@ -80,3 +80,10 @@ If adding new text to the UI:
 1. Add a `data-i18n="yourKey"` attribute to the HTML element (use `data-i18n-placeholder` for input placeholders).
 2. Update the `i18n` dictionary object in `app.js` for **all** supported languages (English, German, French, Italian).
 3. If labels need to change dynamically based on state (like the Max Width / Exact Width toggle), modify the `updateDimensionLabels()` function in `app.js`.
+
+## Deployment
+
+- Production runs the root `Dockerfile` image (`ghcr.io/botvibe/image-converter:main`, published by `.github/workflows/docker-publish.yml`) via `deploy/compose.yml` behind a shared Caddy proxy on the `web` network. GitHub Pages (`deploy.yml`) stays as-is.
+- `nginx.conf` is the production server config. Keep `/healthz`, the `X-App-Revision` header (`__APP_REVISION__` placeholder, replaced at build) and the COOP/COEP headers; nginx drops inherited `add_header`s in any `location` that declares its own, so repeat them there.
+- The container runs `read_only`; nginx may only write to the tmpfs paths in `deploy/compose.yml`.
+- `Caddyfile` is only for Railpack/Dokploy and not used by the Docker image.
